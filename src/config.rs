@@ -58,6 +58,8 @@ pub fn configure() {
 
     if !config_folder.exists() {
         std::fs::create_dir_all(&config_folder).expect("Failed to create config folder");
+        let config_path = Path::new(&home_dir).join(CONFIG_FOLDER).join(CONFIG_FILE);
+        let _ = File::create(&config_path).expect("Failed to create config file");
     }
 
     // Read the existing config and remove the environment if it already exists
