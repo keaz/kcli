@@ -52,11 +52,17 @@ pub enum TopicCommand {
     Create,
     #[command(name = "delete", about = "Delete a topic")]
     Delete(TopicCommandArgs),
-    #[command(name = "Tail", about = "Tail a topic")]
-    Tail(TopicCommandArgs),
+    #[command(name = "tail", about = "Tail a topic")]
+    Tail(TailArgs),
 }
 
 #[derive(Args, Debug)]
 pub struct TopicCommandArgs {
     pub topic: String,
+}
+
+#[derive(Args, Debug)]
+pub struct TailArgs {
+    pub topic: String,
+    pub filter: Option<String>,
 }

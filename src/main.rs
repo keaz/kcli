@@ -39,7 +39,14 @@ fn main() {
             }
             cli::TopicCommand::Create => todo!(),
             cli::TopicCommand::Delete(topic_args) => todo!(),
-            cli::TopicCommand::Tail(topic_arg) => todo!(),
+            cli::TopicCommand::Tail(tail_args) => {
+                let active_env = get_active_environment();
+                if let Some(env) = active_env {
+                    kafka::tail_topic(&env.brokers, &tail_args.topic, tail_args.filter);
+                } else {
+                    println!("No active environment found");
+                }
+            }
         },
         cli::Command::Brokers => {
             println!("Brokers command");

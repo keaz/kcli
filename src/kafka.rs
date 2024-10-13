@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
     io::{Cursor, Read},
+    time::Duration,
 };
 
 use byteorder::{BigEndian, ReadBytesExt};
@@ -10,13 +11,18 @@ use rdkafka::{
     error::KafkaResult,
     groups::GroupList,
     metadata::Metadata,
-    ClientConfig, Offset, TopicPartitionList,
+    ClientConfig, Message, Offset, TopicPartitionList,
 };
 use serde::{Deserialize, Serialize};
+use toml::Value;
+
+const GROUP_ID: &str = "kcli";
 
 fn get_consumer(bootstrap_servers: &str) -> BaseConsumer {
     let consumer: BaseConsumer = ClientConfig::new()
         .set("bootstrap.servers", bootstrap_servers)
+        .set("group.id", GROUP_ID)
+        .set("auto.offset.reset", "latest")
         .create()
         .expect("Consumer creation failed");
 
@@ -134,38 +140,40 @@ pub fn list_consumers_for_topic(consumer: &BaseConsumer, topic: &str) {
 
     match group_list {
         Ok(groups) => {
-            println!("Consumer Groups consuming from topic '{}':", topic);
             for group in groups.groups() {
                 let mut is_consuming = false;
-                for member in group.members() {
-                    let assignment = deserialize_assignment(member.assignment().unwrap());
-                    if assignment.contains_key(topic) {
-                        is_consuming = true;
-                        break;
-                    }
-                }
-
-                if is_consuming {
-                    let mut table = Table::new();
-                    table.add_row(row!["Group ID", "State", "Protocol Type", "Protocol"]);
-
-                    table.add_row(row![
-                        group.name(),
-                        group.state(),
-                        group.protocol_type(),
-                        group.protocol()
-                    ]);
+                if group.state() == "Stable" {
                     for member in group.members() {
                         let assignment = deserialize_assignment(member.assignment().unwrap());
                         if assignment.contains_key(topic) {
-                            // println!("Member ID: {}", member.id());
-                            // println!("Client ID: {}", member.client_id());
-                            // println!("Client Host: {}", member.client_host());
-                            // println!("Assignment: {:?}", assignment);
-                            // println!("Metadata: {:?}", member.metadata());
+                            is_consuming = true;
+                            break;
                         }
                     }
-                    table.printstd();
+
+                    if is_consuming {
+                        let mut table = Table::new();
+                        table.add_row(row!["Group ID", "State", "Protocol Type", "Protocol"]);
+
+                        table.add_row(row![
+                            group.name(),
+                            group.state(),
+                            group.protocol_type(),
+                            group.protocol()
+                        ]);
+                        table.printstd();
+
+                        for member in group.members() {
+                            let assignment = deserialize_assignment(member.assignment().unwrap());
+                            if assignment.contains_key(topic) {
+                                // println!("Member ID: {}", member.id());
+                                // println!("Client ID: {}", member.client_id());
+                                // println!("Client Host: {}", member.client_host());
+                                // println!("Assignment: {:?}", assignment);
+                                // println!("Metadata: {:?}", member.metadata());
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -173,4 +181,66 @@ pub fn list_consumers_for_topic(consumer: &BaseConsumer, topic: &str) {
             println!("Error while listing consumer groups: {:?}", e);
         }
     }
+}
+
+pub fn tail_topic(bootstrap_servers: &str, topic: &str, filter: Option<String>) {
+    let consumer = get_consumer(bootstrap_servers);
+
+    consumer
+        .subscribe(&[topic])
+        .expect("Failed to subscribe to topic");
+
+    loop {
+        match consumer.poll(Duration::from_millis(100)) {
+            Some(Ok(message)) => {
+                let payload = message
+                    .payload_view::<str>()
+                    .unwrap_or(Ok(""))
+                    .unwrap_or("");
+                let _ = message.key_view::<str>().unwrap_or(Ok("")).unwrap_or("");
+
+                if let Ok(json) = serde_json::from_str::<Value>(payload) {
+                    if let Some(filter) = &filter {
+                        if apply_filter(&json, filter) {
+                            let pretty_json = serde_json::to_string_pretty(&json)
+                                .unwrap_or_else(|_| "Invalid JSON".to_string());
+                            println!("{}", pretty_json);
+                        }
+                    } else {
+                        let pretty_json = serde_json::to_string_pretty(&json)
+                            .unwrap_or_else(|_| "Invalid JSON".to_string());
+                        println!("{}", pretty_json);
+                    }
+                }
+            }
+            Some(Err(e)) => {
+                println!("Error while consuming message: {:?}", e);
+            }
+            None => {
+                // No message received, continue polling
+            }
+        }
+    }
+}
+
+fn apply_filter(json: &Value, filter: &str) -> bool {
+    let parts: Vec<&str> = filter.split('=').collect();
+    let path = parts[0];
+    let path_parts: Vec<&str> = path.split('.').collect();
+    let mut current = json;
+
+    for part in path_parts {
+        match current.get(part) {
+            Some(value) => current = value,
+            None => return false,
+        }
+    }
+
+    if parts.len() == 2 {
+        let expected_value = parts[1];
+        let current_value = current.to_string().replace("\"", "");
+        return current_value == expected_value;
+    }
+
+    true
 }
