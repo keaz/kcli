@@ -70,6 +70,7 @@ Example:
 ```sh
 kcli topics tail another-topic  "data.attributes.name=19"
 ```
+![Tail topic with filter](tail_topic.png)
 
 ## Contributing
 Contributions are welcome! Please open an issue or submit a pull request.
