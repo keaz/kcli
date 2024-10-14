@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 byteorder = "1.5.0"
 clap = { version = "4.5.20", features = ["derive"] }
+colored_json = "5.0.0"
 #jq-rs = { version = "0.4.1", features = ["bundled"] }
 prettytable-rs = "0.10.0"
 rdkafka = { version = "0.36.2", features = ["cmake-build", "zstd"] }

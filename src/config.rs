@@ -6,7 +6,6 @@ use std::{
     path::Path,
 };
 
-use clap::builder::Str;
 use serde::{Deserialize, Serialize};
 
 const CONFIG_FOLDER: &str = ".config/kcli";

@@ -5,6 +5,7 @@ use std::{
 };
 
 use byteorder::{BigEndian, ReadBytesExt};
+use colored_json::to_colored_json_auto;
 use prettytable::{row, Table};
 use rdkafka::{
     consumer::{BaseConsumer, Consumer},
@@ -202,9 +203,10 @@ pub fn tail_topic(bootstrap_servers: &str, topic: &str, filter: Option<String>) 
                 if let Ok(json) = serde_json::from_str::<Value>(payload) {
                     if let Some(filter) = &filter {
                         if apply_filter(&json, filter) {
-                            let pretty_json = serde_json::to_string_pretty(&json)
-                                .unwrap_or_else(|_| "Invalid JSON".to_string());
-                            println!("{}", pretty_json);
+                            // let pretty_json = serde_json::to_string_pretty(&json)
+                            //     .unwrap_or_else(|_| "Invalid JSON".to_string());
+                            let colored_json = colorize_json(&json);
+                            println!("{}", colored_json);
                         }
                     } else {
                         let pretty_json = serde_json::to_string_pretty(&json)
@@ -243,4 +245,8 @@ fn apply_filter(json: &Value, filter: &str) -> bool {
     }
 
     true
+}
+
+fn colorize_json(json: &Value) -> String {
+    to_colored_json_auto(json).unwrap_or_else(|_| "Invalid JSON".to_string())
 }
