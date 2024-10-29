@@ -11,12 +11,12 @@ pub struct Cli {
 pub enum Command {
     #[command(name = "config", about = "Configure kcli")]
     Config(ConfigArgs),
-    #[command(name = "topics", about = "List all topics")]
+    #[command(name = "topics", about = "Query topics")]
     Topics(TopicArgs),
     #[command(name = "brokers", about = "List all brokers")]
     Brokers,
-    #[command(name = "groups", about = "List all consumer groups")]
-    Groups,
+    #[command(name = "groups", about = "Query consumer groups")]
+    Groups(GroupCommandArgs),
 }
 
 #[derive(Args, Debug)]
@@ -48,10 +48,10 @@ pub enum TopicCommand {
     List,
     #[command(name = "details", about = "Get details of a topic")]
     Details(TopicCommandArgs),
-    #[command(name = "create", about = "Create a new topic")]
-    Create,
-    #[command(name = "delete", about = "Delete a topic")]
-    Delete(TopicCommandArgs),
+    // #[command(name = "create", about = "Create a new topic")]
+    // Create,
+    // #[command(name = "delete", about = "Delete a topic")]
+    // Delete(TopicCommandArgs),
     #[command(name = "tail", about = "Tail a topic")]
     Tail(TailArgs),
 }
@@ -64,5 +64,11 @@ pub struct TopicCommandArgs {
 #[derive(Args, Debug)]
 pub struct TailArgs {
     pub topic: String,
+    pub before: Option<usize>,
     pub filter: Option<String>,
+}
+
+#[derive(Args, Debug)]
+pub struct GroupCommandArgs {
+    pub group: Option<String>,
 }

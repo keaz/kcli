@@ -37,8 +37,6 @@ fn main() {
                     println!("No active environment found");
                 }
             }
-            cli::TopicCommand::Create => todo!(),
-            cli::TopicCommand::Delete(topic_args) => todo!(),
             cli::TopicCommand::Tail(tail_args) => {
                 let active_env = get_active_environment();
                 if let Some(env) = active_env {
@@ -49,10 +47,27 @@ fn main() {
             }
         },
         cli::Command::Brokers => {
-            println!("Brokers command");
+            let active_env = get_active_environment();
+            if let Some(env) = active_env {
+                kafka::get_broker_detail(&env.brokers);
+            } else {
+                println!("No active environment found");
+            }
         }
-        cli::Command::Groups => {
-            println!("Groups command");
+        cli::Command::Groups(group_command) => {
+            let active_env = get_active_environment();
+            if let Some(env) = active_env {
+                match group_command.group {
+                    Some(group) => {
+                        kafka::get_consumers_group_details(&env.brokers, group);
+                    }
+                    None => {
+                        kafka::get_consumer_groups(&env.brokers);
+                    }
+                }
+            } else {
+                println!("No active environment found");
+            }
         }
     }
 }

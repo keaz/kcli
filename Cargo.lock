@@ -347,7 +347,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "kcli"
+name = "kfcli"
 version = "0.1.0-alpha"
 dependencies = [
  "byteorder",
