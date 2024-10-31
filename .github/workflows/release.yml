@@ -1,0 +1,139 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    name: Build and Release Rust Binary
+    runs-on: ${{ matrix.os }}
+
+    permissions:
+      contents: write
+      packages: write
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        include:
+          - os: macos-latest
+            target_x86: x86_64-apple-darwin
+            target_arm: aarch64-apple-darwin
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install OpenSSL on macOS
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install openssl
+          export OPENSSL_DIR=$(brew --prefix openssl@3)
+          export PKG_CONFIG_PATH=$OPENSSL_DIR/lib/pkgconfig
+          echo "OPENSSL_DIR=$OPENSSL_DIR" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH" >> $GITHUB_ENV
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target || matrix.target_x86 }}
+
+      - name: Add macOS universal binary targets
+        if: matrix.os == 'macos-latest'
+        run: |
+          rustup target add x86_64-apple-darwin aarch64-apple-darwin
+
+      - name: Add Linux and Windows targets
+        if: matrix.os != 'macos-latest'
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Build with Cargo
+        run: |
+          if [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            cargo build --release --target ${{ matrix.target_x86 }}
+            cargo build --release --target ${{ matrix.target_arm }}
+            lipo -create -output ./target/release/universal_binary \
+                 ./target/${{ matrix.target_x86 }}/release/kfcli \
+                 ./target/${{ matrix.target_arm }}/release/kfcli
+          else
+            cargo build --release --target ${{ matrix.target }}
+          fi
+        shell: bash
+
+      - name: Set prerelease flag
+        id: prerelease_check
+        run: |
+          if [[ "${GITHUB_REF#refs/tags/}" == *"alpha"* || "${GITHUB_REF#refs/tags/}" == *"beta"* ]]; then
+            echo "prerelease=true" >> $GITHUB_ENV
+          else
+            echo "prerelease=false" >> $GITHUB_ENV
+          fi
+
+      - name: Check if release exists
+        id: check_release
+        run: |
+          if gh release view "${GITHUB_REF_NAME}" &>/dev/null; then
+            echo "release_exists=true" >> $GITHUB_ENV
+          else
+            echo "release_exists=false" >> $GITHUB_ENV
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create a GitHub Release
+        if: env.release_exists == 'false'
+        id: create_release
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          body: |
+            This release includes the latest Rust binary for version ${{ github.ref_name }}.
+          draft: false
+          prerelease: ${{ env.prerelease }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set upload URL for existing or new release
+        run: |
+          if [[ "${{ env.release_exists }}" == "true" ]]; then
+            UPLOAD_URL=$(gh api repos/${{ github.repository }}/releases/tags/${GITHUB_REF_NAME} --jq ".upload_url" | sed '')
+          else
+            UPLOAD_URL="${{ steps.create_release.outputs.upload_url }}"
+          fi
+          echo "upload_url=$UPLOAD_URL" >> $GITHUB_ENV
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check if macOS binary exists
+        if: matrix.os == 'macos-latest'
+        run: ls -la ./target/release/universal_binary
+
+      - name: Upload macOS Universal Binary Release Asset
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ env.upload_url }}
+          asset_path: ./target/release/universal_binary
+          asset_name: kfcli
+          asset_content_type: application/octet-stream
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Linux Release Asset
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ env.upload_url }}
+          asset_path: ./target/${{ matrix.target }}/release/kfcli
+          asset_name: kfcli
+          asset_content_type: application/octet-stream
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
