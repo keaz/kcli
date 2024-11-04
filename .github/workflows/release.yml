@@ -146,6 +146,7 @@ jobs:
           echo "sha256=$SHA256" >> $GITHUB_ENV
 
       - name: Trigger Homebrew Formula Update via cURL
+        if: matrix.os == 'macos-latest'
         run: |
           URL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/kfcli-macos"
           JSON_PAYLOAD=$(jq -n --arg url "$URL" '{"event_type": "update-kcli-formula", "client_payload": {"tag": "${{ github.ref_name }}", "download_url": $url, "sha": "${{ env.sha256 }}"}}')
