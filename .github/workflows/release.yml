@@ -85,7 +85,7 @@ jobs:
             echo "release_exists=false" >> $GITHUB_ENV
           fi
         env:
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
 
       - name: Create a GitHub Release
         if: env.release_exists == 'false'
@@ -99,7 +99,7 @@ jobs:
           draft: false
           prerelease: ${{ env.prerelease }}
         env:
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
 
       - name: Set upload URL for existing or new release
         run: |
@@ -110,7 +110,7 @@ jobs:
           fi
           echo "upload_url=$UPLOAD_URL" >> $GITHUB_ENV
         env:
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
 
       - name: Check if macOS binary exists
         if: matrix.os == 'macos-latest'
@@ -125,7 +125,7 @@ jobs:
           asset_name: kfcli-macos
           asset_content_type: application/octet-stream
         env:
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
 
       - name: Upload Linux Release Asset
         if: matrix.os == 'ubuntu-latest'
@@ -136,7 +136,7 @@ jobs:
           asset_name: kfcli-linux
           asset_content_type: application/octet-stream
         env:
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
       
       - name: Calculate SHA256 for macOS release asset
         if: matrix.os == 'macos-latest'
@@ -163,6 +163,6 @@ jobs:
             });
             console.log(`Dispatch event sent to ${owner}/${repo}: ${response.status}`);
         env:
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
           HOMEBREW_REPO: "keaz/homebrew-homebrew"
   
