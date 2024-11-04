@@ -147,7 +147,7 @@ jobs:
 
       - name: Trigger Homebrew Formula Update via cURL
         run: |
-          URL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/qtable-macos-universal"
+          URL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/kfcli-macos"
           JSON_PAYLOAD=$(jq -n --arg url "$URL" '{"event_type": "update-kcli-formula", "client_payload": {"tag": "${{ github.ref_name }}", "download_url": $url, "sha": "${{ env.sha256 }}"}}')
           echo "Payload: $JSON_PAYLOAD"
           curl -L \
