@@ -145,24 +145,16 @@ jobs:
           SHA256=$(shasum -a 256 ./target/release/universal_binary | awk '{print $1}')
           echo "sha256=$SHA256" >> $GITHUB_ENV
 
-      - name: Trigger Homebrew Formula Update
-        if: ${{ steps.create_release.outcome == 'success' && matrix.os == 'macos-latest' }}
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const [owner, repo] = process.env.HOMEBREW_REPO.split('/');
-            const response = await github.repos.createDispatchEvent({
-              owner,
-              repo,
-              event_type: "update-kcli-formula",
-              client_payload: {
-                tag: "${{ github.ref_name }}",
-                download_url: "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/kfcli-macos",
-                sha: "${{ github.sha256 }}"
-              }
-            });
-            console.log(`Dispatch event sent to ${owner}/${repo}: ${response.status}`);
-        env:
-          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
-          HOMEBREW_REPO: "keaz/homebrew-homebrew"
+      - name: Trigger Homebrew Formula Update via cURL
+        run: |
+          URL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/qtable-macos-universal"
+          JSON_PAYLOAD=$(jq -n --arg url "$URL" '{"event_type": "update-kcli-formula", "client_payload": {"tag": "${{ github.ref_name }}", "download_url": $url, "sha": "${{ env.sha256 }}"}}')
+          echo "Payload: $JSON_PAYLOAD"
+          curl -L \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.PAT_TOKEN }}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/keaz/homebrew-homebrew/dispatches \
+            -d "$JSON_PAYLOAD"
   
