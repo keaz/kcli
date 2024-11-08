@@ -46,7 +46,7 @@ Here are some examples of how to use kfcli:
 ### Config Commands
 #### Set the active environment
 ```sh
-kfcli config active --environment <environment_name>
+kfcli config active <environment_name>
 ```
 
 ### Topic Commands
