@@ -1,6 +1,8 @@
-# kcli
+# kfcli
 
-`kcli` is a command-line interface (CLI) tool written in Rust. It provides utilities to monitor Kafka topics and consumers.
+`kfcli` is a command-line interface (CLI) tool written in Rust. It provides utilities to monitor Kafka topics and consumers.
+
+![CI](https://github.com/keaz/kcli/actions/workflows/ci.yml/badge.svg)
 
 ## Features
 
@@ -12,65 +14,65 @@
 
 ### Using Cargo
 
-To install `kcli` using Cargo, you can use the following command:
+To install `kfcli` using Cargo, you can use the following command:
 
 ```sh
-cargo install kcli
+cargo install kfcli
 ```
 
 ### Using Homebrew (macOS)
-To install kcli on macOS using Homebrew, you can use the following commands:
+To install kfcli on macOS using Homebrew, you can use the following commands:
 
 ```sh
 brew tap keaz/homebrew
-brew install kcli
+brew install kfcli
 ```
 
 ## Usage
-Here are some examples of how to use kcli:
+Here are some examples of how to use kfcli:
 
 ### Config Commands
 #### Set the active environment
 ```sh
-kcli config active --environment <environment_name>
+kfcli config active --environment <environment_name>
 ```
 
 ### Topic Commands
 #### List all topics
 ```sh
-kcli topic list
+kfcli topic list
 ```
 
 #### Get details of a topic
 ```sh
-kcli topics details <topic_name>
+kfcli topics details <topic_name>
 ```
 
 #### Create a topic
 ```sh
-kcli topics create <topic_name> --partitions <num_partitions> --replication-factor <replication_factor>
+kfcli topics create <topic_name> --partitions <num_partitions> --replication-factor <replication_factor>
 ```
 
 #### Delete a topic
 ```sh
-kcli topics delete <topic_name>
+kfcli topics delete <topic_name>
 ```
 
 #### Tail a topic
 ```sh
-kcli topics tail <topic_name>
+kfcli topics tail <topic_name>
 ```
 
 #### Tail a topic with filters
 ```sh
-kcli topics tail  <topic_name>  "<filter>"
+kfcli topics tail  <topic_name>  "<filter>"
 ```
 
 Example:
 ```sh
-kcli topics tail another-topic  "data.attributes.name=19"
+kfcli topics tail another-topic  "data.attributes.name=19"
 ```
-![Tail topic with filter](tail_topic.png)
+![kfcli](kfcli.gif)
 
 ## Contributing
 Contributions are welcome! Please open an issue or submit a pull request.

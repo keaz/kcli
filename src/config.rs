@@ -8,7 +8,7 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-const CONFIG_FOLDER: &str = ".config/kcli";
+const CONFIG_FOLDER: &str = ".config/kcfli";
 const CONFIG_FILE: &str = "config.toml";
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

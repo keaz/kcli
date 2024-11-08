@@ -247,15 +247,12 @@ pub fn tail_topic(bootstrap_servers: &str, topic: &str, filter: Option<String>) 
                 if let Ok(json) = serde_json::from_str::<Value>(payload) {
                     if let Some(filter) = &filter {
                         if apply_filter(&json, filter) {
-                            // let pretty_json = serde_json::to_string_pretty(&json)
-                            //     .unwrap_or_else(|_| "Invalid JSON".to_string());
                             let colored_json = colorize_json(&json);
                             println!("{}", colored_json);
                         }
                     } else {
-                        let pretty_json = serde_json::to_string_pretty(&json)
-                            .unwrap_or_else(|_| "Invalid JSON".to_string());
-                        println!("{}", pretty_json);
+                        let colored_json = colorize_json(&json);
+                        println!("{}", colored_json);
                     }
                 }
             }
