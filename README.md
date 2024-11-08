@@ -10,6 +10,13 @@
 - **Broker Monitor**: Monitor Kafka brokers.
 - **Consumer Group Monitor**: Monitor Kafka consumer groups.
 
+## Task Completed
+- [X] MVP
+- [ ] Unit tests
+- [ ] Performance improvement
+- [ ] Documentation
+
+
 ## Installation
 
 ### Using Cargo
