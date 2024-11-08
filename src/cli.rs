@@ -1,7 +1,7 @@
 use clap::{Args, Parser, Subcommand};
 
 #[derive(Parser, Debug)]
-#[command(name = "kcli", about = "A CLI tool to monitor kafka")]
+#[command(version, name = "kcli", about = "A CLI tool to monitor kafka")]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Command,
