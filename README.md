@@ -12,6 +12,7 @@
 
 ## Task Completed
 - [X] MVP
+- [ ] Support XML
 - [ ] Unit tests
 - [ ] Performance improvement
 - [ ] Documentation
