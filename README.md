@@ -12,6 +12,10 @@
 
 ## Task Completed
 - [X] MVP
+- [X] Support JSON
+- [X] Tail Topics
+- [X] Inspect Topic/Groups
+- [X] Manage different Environments
 - [ ] Support XML
 - [ ] Unit tests
 - [ ] Performance improvement
