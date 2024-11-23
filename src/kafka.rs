@@ -13,7 +13,7 @@ use rdkafka::{
     consumer::{BaseConsumer, Consumer},
     error::KafkaResult,
     groups::GroupList,
-    metadata::Metadata,
+    metadata::{Metadata, MetadataPartition},
     ClientConfig, Message, Offset, TopicPartitionList,
 };
 use serde::{Deserialize, Serialize};
@@ -25,6 +25,17 @@ fn get_consumer(bootstrap_servers: &str) -> BaseConsumer {
     let consumer: BaseConsumer = ClientConfig::new()
         .set("bootstrap.servers", bootstrap_servers)
         .set("group.id", GROUP_ID)
+        .set("auto.offset.reset", "latest")
+        .create()
+        .expect("Consumer creation failed");
+
+    consumer
+}
+
+fn get_given_consumer(bootstrap_servers: &str, group_id: &str) -> BaseConsumer {
+    let consumer: BaseConsumer = ClientConfig::new()
+        .set("bootstrap.servers", bootstrap_servers)
+        .set("group.id", group_id)
         .set("auto.offset.reset", "latest")
         .create()
         .expect("Consumer creation failed");
@@ -108,28 +119,14 @@ fn get_topic_detail_inner<'a>(
                 let mut partition_ids = String::new();
 
                 t.partitions().iter().for_each(|p| {
-                    partition_ids.push_str(&p.id().to_string());
-                    partition_ids.push_str(", ");
-
-                    let mut tpl = TopicPartitionList::new();
-                    tpl.add_partition_offset(topic, p.id(), Offset::End)
-                        .unwrap();
-                    let offsets = consumer
-                        .offsets_for_times(tpl, std::time::Duration::from_secs(10))
-                        .expect("Failed to get offsets");
-
-                    let mut partion_offset = 0;
-                    if let Some(offset) = offsets.elements_for_topic(topic).first() {
-                        if let Offset::Offset(offset) = offset.offset() {
-                            total_messages += offset;
-                            partion_offset = offset;
-                        }
-                    }
-                    partition_detail.push([
-                        p.id().to_string(),
-                        p.leader().to_string(),
-                        partion_offset.to_string(),
-                    ]);
+                    partition_detail_inner(
+                        &mut partition_ids,
+                        p,
+                        topic,
+                        consumer,
+                        &mut total_messages,
+                        &mut partition_detail,
+                    );
                 });
 
                 overall_detail = [
@@ -147,6 +144,38 @@ fn get_topic_detail_inner<'a>(
         }
         Err(e) => Err(Error::Topic(e)),
     }
+}
+
+fn partition_detail_inner(
+    partition_ids: &mut String,
+    p: &MetadataPartition,
+    topic: &str,
+    consumer: &BaseConsumer,
+    total_messages: &mut i64,
+    partition_detail: &mut Vec<[String; 3]>,
+) {
+    partition_ids.push_str(&p.id().to_string());
+    partition_ids.push_str(", ");
+
+    let mut tpl = TopicPartitionList::new();
+    tpl.add_partition_offset(topic, p.id(), Offset::End)
+        .unwrap();
+    let offsets = consumer
+        .offsets_for_times(tpl, std::time::Duration::from_secs(10))
+        .expect("Failed to get offsets");
+
+    let mut partion_offset = 0;
+    if let Some(offset) = offsets.elements_for_topic(topic).first() {
+        if let Offset::Offset(offset) = offset.offset() {
+            *total_messages += offset;
+            partion_offset = offset;
+        }
+    }
+    partition_detail.push([
+        p.id().to_string(),
+        p.leader().to_string(),
+        partion_offset.to_string(),
+    ]);
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -498,7 +527,72 @@ fn get_consumers_group_details_inner(
     }
 }
 
-enum Error {
+pub fn calculate_consumer_lag(bootstrap_servers: &str, group_id: &str) -> Result<(), Error> {
+    let consumer = get_given_consumer(bootstrap_servers, group_id);
+
+    // Get metadata for topic partitions
+    let metadata = consumer
+        .fetch_metadata(None, Duration::from_secs(10))
+        .map_err(Error::Topic)?;
+
+    for topic in metadata.topics() {
+        let topic_metadata = topic;
+        println!("Topic: {}", topic_metadata.name());
+
+        // Create partition list for committed offsets
+        let mut tpl = TopicPartitionList::new();
+        for partition in topic_metadata.partitions() {
+            tpl.add_partition(topic_metadata.name(), partition.id());
+        }
+
+        let mut table = Table::new();
+        table.add_row(row!["Partition", "Current Offset", "Latest Offset", "Lag"]);
+
+        let mut total_messages = 0;
+        let mut partition_detail: Vec<[String; 3]> = vec![];
+
+        for partition in topic_metadata.partitions() {
+            let partition_id = partition.id();
+
+            partition_detail_inner(
+                &mut String::new(),
+                partition,
+                topic_metadata.name(),
+                &consumer,
+                &mut total_messages,
+                &mut partition_detail,
+            );
+
+            // Get latest offset
+            let (_, high_watermark) = consumer
+                .fetch_watermarks(topic_metadata.name(), partition_id, Duration::from_secs(5))
+                .map_err(Error::Topic)?;
+
+            let mut topic_partition_list = TopicPartitionList::new();
+            topic_partition_list.add_partition(topic_metadata.name(), partition_id);
+            let committed_offsets = consumer
+                .committed_offsets(topic_partition_list, std::time::Duration::from_secs(5))
+                .expect("Failed to fetch committed offsets");
+
+            // Get committed offset
+            let committed_offset = committed_offsets
+                .find_partition(topic_metadata.name(), partition_id)
+                .and_then(|p| Some(p.offset().to_raw()))
+                .unwrap_or(Some(0))
+                .unwrap_or(0);
+
+            // Calculate lag
+            let lag = high_watermark - committed_offset;
+
+            table.add_row(row![partition_id, committed_offset, high_watermark, lag]);
+        }
+        table.printstd();
+    }
+
+    Ok(())
+}
+
+pub enum Error {
     Broker(rdkafka::error::KafkaError),
     Group(rdkafka::error::KafkaError),
     Topic(rdkafka::error::KafkaError),
