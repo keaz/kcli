@@ -1,12 +1,12 @@
 use std::{
     collections::HashMap,
+    f32::consts::E,
     fmt::Debug,
     io::{Cursor, Read},
     time::Duration,
 };
 
 use byteorder::{BigEndian, ReadBytesExt};
-use clap::builder::Str;
 use colored_json::to_colored_json_auto;
 use prettytable::{row, Table};
 use rdkafka::{
@@ -19,7 +19,7 @@ use rdkafka::{
 use serde::{Deserialize, Serialize};
 use toml::Value;
 
-const GROUP_ID: &str = "kcli";
+const GROUP_ID: &str = "kfcli";
 
 fn get_consumer(bootstrap_servers: &str) -> BaseConsumer {
     let consumer: BaseConsumer = ClientConfig::new()
@@ -423,8 +423,8 @@ fn print_consumer_groups_table(headers: &[&str; 4], rows: &[[String; 4]]) {
     table.printstd();
 }
 
-pub fn get_consumers_group_details(bootstrap_servers: &str, group: String) {
-    get_consumers_group_details_inner(bootstrap_servers, group)
+pub fn get_consumers_group_details(bootstrap_servers: &str, group: String, lag: bool) {
+    get_consumers_group_details_inner(bootstrap_servers, &group)
         .map(
             |(group_header, group_detail, member_header, member_detail)| {
                 let mut group_table = Table::new();
@@ -461,12 +461,17 @@ pub fn get_consumers_group_details(bootstrap_servers: &str, group: String) {
             },
         )
         .unwrap_or_else(|e| println!("Error while getting consumer group details: {:?}", e));
+
+    if lag {
+        calculate_consumer_lag(bootstrap_servers, &group)
+            .unwrap_or_else(|e| println!("Error while calculating consumer lag: {:?}", e));
+    }
 }
 
-fn get_consumers_group_details_inner(
+fn get_consumers_group_details_inner<'a>(
     bootstrap_servers: &str,
-    group: String,
-) -> Result<([&str; 4], [String; 4], [&str; 5], [String; 5]), Error> {
+    group: &'a str,
+) -> Result<([&'a str; 4], [String; 4], [&'a str; 5], [String; 5]), Error> {
     let consumer = get_consumer(bootstrap_servers);
     let group_list: KafkaResult<GroupList> =
         consumer.fetch_group_list(Some(&group), std::time::Duration::from_secs(10));
@@ -527,8 +532,21 @@ fn get_consumers_group_details_inner(
     }
 }
 
-pub fn calculate_consumer_lag(bootstrap_servers: &str, group_id: &str) -> Result<(), Error> {
+fn calculate_consumer_lag(bootstrap_servers: &str, group_id: &str) -> Result<(), Error> {
     let consumer = get_given_consumer(bootstrap_servers, group_id);
+
+    let subscription = consumer.subscription();
+    if subscription.is_err() {
+        return Err(Error::Group(subscription.err().unwrap()));
+    }
+
+    // #TODO: This should be implemented
+    // let subscription = subscription.unwrap();
+    // let topics: Vec<String> = subscription
+    //     .elements()
+    //     .iter()
+    //     .map(|tp| tp.topic().to_string())
+    //     .collect();
 
     // Get metadata for topic partitions
     let metadata = consumer
