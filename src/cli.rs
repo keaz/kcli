@@ -1,7 +1,17 @@
-use clap::{Args, Parser, Subcommand};
+use std::{
+    fs::{self, File},
+    io,
+    path::Path,
+};
+
+use clap::{Args, CommandFactory, Parser, Subcommand, ValueEnum};
 
 #[derive(Parser, Debug)]
-#[command(version, name = "kcli", about = "A CLI tool to monitor kafka clusters")]
+#[command(
+    version,
+    name = "kfcli",
+    about = "A CLI tool to monitor kafka clusters"
+)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Command,
@@ -20,6 +30,8 @@ pub enum Command {
     Brokers(BrokerCommandArgs),
     #[command(name = "consumer", about = "Query consumers")]
     Consumer(ConsumerCommandArgs),
+    #[command(name = "completion", about = "Generate shell completions")]
+    Completion(CompletionArgs),
 }
 
 #[derive(Args, Debug)]
@@ -84,4 +96,47 @@ pub struct ConsumerCommandArgs {
 pub struct BrokerCommandArgs {
     #[arg(short, long)]
     pub list: bool,
+}
+
+#[derive(ValueEnum, Debug, Clone)]
+pub enum Shell {
+    Bash,
+    Zsh,
+}
+
+#[derive(Args, Debug)]
+pub struct CompletionArgs {
+    #[arg(value_enum)]
+    pub shell: Shell,
+}
+
+pub fn generate_completion(shell: Shell) -> Result<(), io::Error> {
+    let mut cmd = Cli::command();
+    let dir = match shell {
+        Shell::Bash => ".bash_completion.d",
+        Shell::Zsh => ".zfunc",
+    };
+
+    // Create the directory if it doesn't exist
+    if !Path::new(dir).exists() {
+        fs::create_dir_all(dir)?;
+    }
+
+    let file_path = match shell {
+        Shell::Bash => format!("{}/kfcli.bash", dir),
+        Shell::Zsh => format!("{}/_kfcli", dir),
+    };
+
+    let mut file = File::create(file_path)?;
+
+    match shell {
+        Shell::Bash => {
+            clap_complete::generate(clap_complete::shells::Bash, &mut cmd, "kfcli", &mut file);
+        }
+        Shell::Zsh => {
+            clap_complete::generate(clap_complete::shells::Zsh, &mut cmd, "kfcli", &mut file);
+        }
+    }
+
+    Ok(())
 }

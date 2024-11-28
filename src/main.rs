@@ -1,5 +1,5 @@
 use clap::Parser;
-use cli::Cli;
+use cli::{generate_completion, Cli};
 use config::{activate_environment, configure, get_active_environment};
 
 mod cli;
@@ -73,5 +73,11 @@ fn main() {
                 println!("No active environment found");
             }
         }
+        cli::Command::Completion(args) => match generate_completion(args.shell) {
+            Ok(_) => {
+                println!("Completion generated successfully");
+            }
+            Err(e) => eprintln!("Error generating completion: {}", e),
+        },
     }
 }

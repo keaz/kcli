@@ -19,10 +19,10 @@ pub struct EnvironmentConfig {
 
 pub fn configure() {
     println!("Configuring kcli");
-    let mut isOk = false;
+    let mut is_ok = false;
     let mut environment = String::new();
     let mut brokers = String::new();
-    while !isOk {
+    while !is_ok {
         environment = get_environment();
         brokers = get_kafka_brokers();
 
@@ -36,7 +36,7 @@ pub fn configure() {
             .read_line(&mut input)
             .expect("Failed to read line");
         match input.trim() {
-            "y" => isOk = true,
+            "y" => is_ok = true,
             "n" => continue,
             _ => {
                 println!("Invalid input. Please enter 'y' or 'n'");
