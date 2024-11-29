@@ -1,0 +1,364 @@
+#compdef kfcli
+
+autoload -U is-at-least
+
+_kfcli() {
+    typeset -A opt_args
+    typeset -a _arguments_options
+    local ret=1
+
+    if is-at-least 5.2; then
+        _arguments_options=(-s -S -C)
+    else
+        _arguments_options=(-s -C)
+    fi
+
+    local context curcontext="$curcontext" state line
+    _arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+'-V[Print version]' \
+'--version[Print version]' \
+":: :_kfcli_commands" \
+"*::: :->kfcli" \
+&& ret=0
+    case $state in
+    (kfcli)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:kfcli-command-$line[1]:"
+        case $line[1] in
+            (config)
+_arguments "${_arguments_options[@]}" : \
+'-a+[]:ACTIVATE:_default' \
+'--activate=[]:ACTIVATE:_default' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(topics)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+":: :_kfcli__topics_commands" \
+"*::: :->topics" \
+&& ret=0
+
+    case $state in
+    (topics)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:kfcli-topics-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(details)
+_arguments "${_arguments_options[@]}" : \
+'-t+[]:TOPIC:_default' \
+'--topic=[]:TOPIC:_default' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(tail)
+_arguments "${_arguments_options[@]}" : \
+'-t+[Name of the topic to tail]:TOPIC:_default' \
+'--topic=[Name of the topic to tail]:TOPIC:_default' \
+'-b+[Start the tail before the current offset]:BEFORE:_default' \
+'--before=[Start the tail before the current offset]:BEFORE:_default' \
+'-f+[Apply the given filter to the tail]:FILTER:_default' \
+'--filter=[Apply the given filter to the tail]:FILTER:_default' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_kfcli__topics__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:kfcli-topics-help-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(details)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(tail)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
+(brokers)
+_arguments "${_arguments_options[@]}" : \
+'-l[]' \
+'--list[]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(consumer)
+_arguments "${_arguments_options[@]}" : \
+'-c+[Get details of a consumer group]:CONSUMER:_default' \
+'--consumer=[Get details of a consumer group]:CONSUMER:_default' \
+'-l[List all consumer groups]' \
+'--list[List all consumer groups]' \
+'-p[Include the lag to the consumer details]' \
+'--pending[Include the lag to the consumer details]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(completion)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+':shell:(bash zsh)' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_kfcli__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:kfcli-help-command-$line[1]:"
+        case $line[1] in
+            (config)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(topics)
+_arguments "${_arguments_options[@]}" : \
+":: :_kfcli__help__topics_commands" \
+"*::: :->topics" \
+&& ret=0
+
+    case $state in
+    (topics)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:kfcli-help-topics-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(details)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(tail)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(brokers)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(consumer)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(completion)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+}
+
+(( $+functions[_kfcli_commands] )) ||
+_kfcli_commands() {
+    local commands; commands=(
+'config:Configure kfcli with the environment and brokers' \
+'topics:Query topics' \
+'brokers:Query brokers' \
+'consumer:Query consumers' \
+'completion:Generate shell completions' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'kfcli commands' commands "$@"
+}
+(( $+functions[_kfcli__brokers_commands] )) ||
+_kfcli__brokers_commands() {
+    local commands; commands=()
+    _describe -t commands 'kfcli brokers commands' commands "$@"
+}
+(( $+functions[_kfcli__completion_commands] )) ||
+_kfcli__completion_commands() {
+    local commands; commands=()
+    _describe -t commands 'kfcli completion commands' commands "$@"
+}
+(( $+functions[_kfcli__config_commands] )) ||
+_kfcli__config_commands() {
+    local commands; commands=()
+    _describe -t commands 'kfcli config commands' commands "$@"
+}
+(( $+functions[_kfcli__consumer_commands] )) ||
+_kfcli__consumer_commands() {
+    local commands; commands=()
+    _describe -t commands 'kfcli consumer commands' commands "$@"
+}
+(( $+functions[_kfcli__help_commands] )) ||
+_kfcli__help_commands() {
+    local commands; commands=(
+'config:Configure kfcli with the environment and brokers' \
+'topics:Query topics' \
+'brokers:Query brokers' \
+'consumer:Query consumers' \
+'completion:Generate shell completions' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'kfcli help commands' commands "$@"
+}
+(( $+functions[_kfcli__help__brokers_commands] )) ||
+_kfcli__help__brokers_commands() {
+    local commands; commands=()
+    _describe -t commands 'kfcli help brokers commands' commands "$@"
+}
+(( $+functions[_kfcli__help__completion_commands] )) ||
+_kfcli__help__completion_commands() {
+    local commands; commands=()
+    _describe -t commands 'kfcli help completion commands' commands "$@"
+}
+(( $+functions[_kfcli__help__config_commands] )) ||
+_kfcli__help__config_commands() {
+    local commands; commands=()
+    _describe -t commands 'kfcli help config commands' commands "$@"
+}
+(( $+functions[_kfcli__help__consumer_commands] )) ||
+_kfcli__help__consumer_commands() {
+    local commands; commands=()
+    _describe -t commands 'kfcli help consumer commands' commands "$@"
+}
+(( $+functions[_kfcli__help__help_commands] )) ||
+_kfcli__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'kfcli help help commands' commands "$@"
+}
+(( $+functions[_kfcli__help__topics_commands] )) ||
+_kfcli__help__topics_commands() {
+    local commands; commands=(
+'list:List all topics' \
+'details:Get details of a topic' \
+'tail:Tail a topic' \
+    )
+    _describe -t commands 'kfcli help topics commands' commands "$@"
+}
+(( $+functions[_kfcli__help__topics__details_commands] )) ||
+_kfcli__help__topics__details_commands() {
+    local commands; commands=()
+    _describe -t commands 'kfcli help topics details commands' commands "$@"
+}
+(( $+functions[_kfcli__help__topics__list_commands] )) ||
+_kfcli__help__topics__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'kfcli help topics list commands' commands "$@"
+}
+(( $+functions[_kfcli__help__topics__tail_commands] )) ||
+_kfcli__help__topics__tail_commands() {
+    local commands; commands=()
+    _describe -t commands 'kfcli help topics tail commands' commands "$@"
+}
+(( $+functions[_kfcli__topics_commands] )) ||
+_kfcli__topics_commands() {
+    local commands; commands=(
+'list:List all topics' \
+'details:Get details of a topic' \
+'tail:Tail a topic' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'kfcli topics commands' commands "$@"
+}
+(( $+functions[_kfcli__topics__details_commands] )) ||
+_kfcli__topics__details_commands() {
+    local commands; commands=()
+    _describe -t commands 'kfcli topics details commands' commands "$@"
+}
+(( $+functions[_kfcli__topics__help_commands] )) ||
+_kfcli__topics__help_commands() {
+    local commands; commands=(
+'list:List all topics' \
+'details:Get details of a topic' \
+'tail:Tail a topic' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'kfcli topics help commands' commands "$@"
+}
+(( $+functions[_kfcli__topics__help__details_commands] )) ||
+_kfcli__topics__help__details_commands() {
+    local commands; commands=()
+    _describe -t commands 'kfcli topics help details commands' commands "$@"
+}
+(( $+functions[_kfcli__topics__help__help_commands] )) ||
+_kfcli__topics__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'kfcli topics help help commands' commands "$@"
+}
+(( $+functions[_kfcli__topics__help__list_commands] )) ||
+_kfcli__topics__help__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'kfcli topics help list commands' commands "$@"
+}
+(( $+functions[_kfcli__topics__help__tail_commands] )) ||
+_kfcli__topics__help__tail_commands() {
+    local commands; commands=()
+    _describe -t commands 'kfcli topics help tail commands' commands "$@"
+}
+(( $+functions[_kfcli__topics__list_commands] )) ||
+_kfcli__topics__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'kfcli topics list commands' commands "$@"
+}
+(( $+functions[_kfcli__topics__tail_commands] )) ||
+_kfcli__topics__tail_commands() {
+    local commands; commands=()
+    _describe -t commands 'kfcli topics tail commands' commands "$@"
+}
+
+if [ "$funcstack[1]" = "_kfcli" ]; then
+    _kfcli "$@"
+else
+    compdef _kfcli kfcli
+fi
