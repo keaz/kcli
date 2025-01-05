@@ -1,6 +1,5 @@
 use std::{
     collections::HashMap,
-    f32::consts::E,
     fmt::Debug,
     io::{Cursor, Read},
     time::Duration,
@@ -13,7 +12,7 @@ use rdkafka::{
     consumer::{BaseConsumer, Consumer},
     error::KafkaResult,
     groups::GroupList,
-    metadata::{Metadata, MetadataPartition},
+    metadata::{self, Metadata, MetadataPartition},
     ClientConfig, Message, Offset, TopicPartitionList,
 };
 use serde::{Deserialize, Serialize};
@@ -44,10 +43,7 @@ fn get_given_consumer(bootstrap_servers: &str, group_id: &str) -> BaseConsumer {
 }
 
 pub fn get_topics(bootstrap_servers: &str) {
-    let consumer = get_consumer(bootstrap_servers);
-    let metadata: KafkaResult<Metadata> =
-        consumer.fetch_metadata(None, std::time::Duration::from_secs(10));
-
+    let metadata = get_topics_inner(bootstrap_servers);
     match metadata {
         Ok(metadata) => {
             let mut table = Table::new();
@@ -61,6 +57,11 @@ pub fn get_topics(bootstrap_servers: &str) {
             println!("Error while getting topics: {:?}", e);
         }
     }
+}
+
+fn get_topics_inner(bootstrap_servers: &str) -> Result<Metadata, rdkafka::error::KafkaError> {
+    let consumer = get_consumer(bootstrap_servers);
+    consumer.fetch_metadata(None, Duration::from_secs(10))
 }
 
 pub fn get_topic_detail(bootstrap_servers: &str, topic: &str) {
@@ -623,5 +624,45 @@ impl Debug for Error {
             Error::Group(e) => write!(f, "{:?}", e),
             Error::Topic(e) => write!(f, "{:?}", e),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::kafka::{get_consumer, get_topic_detail_inner};
+
+    #[test]
+    fn test_get_topics_inner() {
+        let bootstrap_servers = "localhost:9092";
+        let metadata = super::get_topics_inner(bootstrap_servers);
+        assert!(metadata.is_ok());
+        let metadata = metadata.unwrap();
+        assert_eq!(metadata.topics().len(), 4);
+        metadata
+            .topics()
+            .iter()
+            .filter(|topic| topic.name() == "first-topic")
+            .for_each(|topic| {
+                assert_eq!(topic.partitions().len(), 1);
+            });
+    }
+
+    #[test]
+    fn test_get_topic_detail_inner() {
+        let bootstrap_servers = "localhost:9092";
+        let topic = "topic-one";
+        let consumer = get_consumer(bootstrap_servers);
+        let (overall_header, overall_detail, partition_detail_header, partition_detail) =
+            get_topic_detail_inner(&consumer, topic).unwrap();
+        assert_eq!(
+            overall_header,
+            ["Partitions", "Partition IDs", "Total Messages"]
+        );
+        assert_eq!(overall_detail, ["1", "0, ", "0"]);
+        assert_eq!(
+            partition_detail_header,
+            ["Partition ID", "Leader", "Offset"]
+        );
+        assert_eq!(partition_detail, [["0", "0", "0"]]);
     }
 }
