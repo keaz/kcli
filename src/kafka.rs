@@ -629,6 +629,8 @@ impl Debug for Error {
 
 #[cfg(test)]
 mod test {
+    use rdkafka::metadata::MetadataTopic;
+
     use crate::kafka::{get_consumer, get_topic_detail_inner};
 
     #[test]
@@ -637,13 +639,18 @@ mod test {
         let metadata = super::get_topics_inner(bootstrap_servers);
         assert!(metadata.is_ok());
         let metadata = metadata.unwrap();
-        assert_eq!(metadata.topics().len(), 4);
-        metadata
+        let topics = metadata
             .topics()
             .iter()
-            .filter(|topic| topic.name() == "first-topic")
+            .filter(|topic| topic.name() != "__consumer_offsets")
+            .collect::<Vec<&MetadataTopic>>();
+
+        assert_eq!(topics.len(), 3);
+        topics
+            .iter()
+            .filter(|topic| topic.name() == "topic-one")
             .for_each(|topic| {
-                assert_eq!(topic.partitions().len(), 1);
+                assert_eq!(topic.partitions().len(), 3);
             });
     }
 
@@ -658,11 +665,14 @@ mod test {
             overall_header,
             ["Partitions", "Partition IDs", "Total Messages"]
         );
-        assert_eq!(overall_detail, ["1", "0, ", "0"]);
+        assert_eq!(overall_detail, ["3", "0, 1, 2, ", "0"]);
         assert_eq!(
             partition_detail_header,
             ["Partition ID", "Leader", "Offset"]
         );
-        assert_eq!(partition_detail, [["0", "0", "0"]]);
+        assert_eq!(
+            partition_detail,
+            [["0", "1", "0"], ["1", "1", "0"], ["2", "1", "0"]]
+        );
     }
 }
