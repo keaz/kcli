@@ -1,7 +1,6 @@
 use std::{
     collections::HashMap,
     env,
-    fmt::format,
     fs::File,
     io::{self, Read, Write},
     path::Path,
@@ -189,7 +188,7 @@ pub fn activate_environment(environment: &str, config_file: File) -> Result<(), 
 
 pub fn get_config_file() -> Result<File, ConfigError> {
     // Get the home directory
-    let home_dir = env::var("HOME").map_err(|er| {
+    let home_dir = env::var("HOME").map_err(|_| {
         ConfigError::HomeDirNotFound("HOME environment variable not found".to_string())
     })?;
     let config_path = Path::new(&home_dir).join(CONFIG_FOLDER).join(CONFIG_FILE);
