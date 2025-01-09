@@ -12,7 +12,7 @@ use rdkafka::{
     consumer::{BaseConsumer, Consumer},
     error::KafkaResult,
     groups::GroupList,
-    metadata::{self, Metadata, MetadataPartition},
+    metadata::{Metadata, MetadataPartition},
     ClientConfig, Message, Offset, TopicPartitionList,
 };
 use serde::{Deserialize, Serialize};

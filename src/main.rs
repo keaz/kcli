@@ -1,3 +1,5 @@
+use std::f32::consts::E;
+
 use clap::Parser;
 use cli::{generate_completion, Cli};
 use config::{activate_environment, configure, get_active_environment};
@@ -11,52 +13,55 @@ fn main() {
     match config.command {
         cli::Command::Config(args) => {
             if let Some(conf_command) = args.activate {
-                activate_environment(&conf_command);
+                if let Err(e) = activate_environment(&conf_command) {
+                    eprintln!("Error: {}", e);
+                }
             } else {
-                configure();
+                if let Err(e) = configure() {
+                    eprintln!("Error: {}", e);
+                }
             }
         }
         cli::Command::Topics(topic_args) => match topic_args.command {
-            cli::TopicCommand::List => {
-                let active_env = get_active_environment();
-                if let Some(env) = active_env {
+            cli::TopicCommand::List => match get_active_environment() {
+                Ok(env) => {
                     kafka::get_topics(&env.brokers);
-                } else {
-                    println!("No active environment found");
                 }
-            }
-            cli::TopicCommand::Details(topic_args) => {
-                let active_env = get_active_environment();
-                if let Some(env) = active_env {
+                Err(e) => {
+                    eprintln!("Error: {}", e);
+                }
+            },
+            cli::TopicCommand::Details(topic_args) => match get_active_environment() {
+                Ok(env) => {
                     kafka::get_topic_detail(&env.brokers, &topic_args.topic);
-                } else {
-                    println!("No active environment found");
                 }
-            }
-            cli::TopicCommand::Tail(tail_args) => {
-                let active_env = get_active_environment();
-                if let Some(env) = active_env {
+                Err(e) => {
+                    eprintln!("Error: {}", e);
+                }
+            },
+            cli::TopicCommand::Tail(tail_args) => match get_active_environment() {
+                Ok(env) => {
                     kafka::tail_topic(&env.brokers, &tail_args.topic, tail_args.filter);
-                } else {
-                    println!("No active environment found");
                 }
-            }
+                Err(e) => {
+                    eprintln!("Error: {}", e);
+                }
+            },
         },
-        cli::Command::Brokers(args) => {
-            let active_env = get_active_environment();
-            if let Some(env) = active_env {
+        cli::Command::Brokers(args) => match get_active_environment() {
+            Ok(env) => {
                 if args.list {
                     kafka::get_broker_detail(&env.brokers);
                     return;
                 }
                 eprintln!("Invalid command, use -l flag to list brokers");
-            } else {
-                println!("No active environment found");
             }
-        }
-        cli::Command::Consumer(group_command) => {
-            let active_env = get_active_environment();
-            if let Some(env) = active_env {
+            Err(e) => {
+                eprintln!("Error: {}", e);
+            }
+        },
+        cli::Command::Consumer(group_command) => match get_active_environment() {
+            Ok(env) => {
                 if group_command.list {
                     kafka::get_consumer_groups(&env.brokers);
                     return;
@@ -69,10 +74,11 @@ fn main() {
                         eprintln!("Either specify -g or -l flag");
                     }
                 }
-            } else {
-                println!("No active environment found");
             }
-        }
+            Err(e) => {
+                eprintln!("Error: {}", e);
+            }
+        },
         cli::Command::Completion(args) => match generate_completion(args.shell) {
             Ok(_) => {
                 println!("Completion generated successfully");
