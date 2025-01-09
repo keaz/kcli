@@ -97,8 +97,9 @@ pub fn configure() -> Result<(), ConfigError> {
         })?;
     }
 
+    let file = get_config_file()?;
     // Read the existing config and remove the environment if it already exists
-    let mut environments = read_config()?;
+    let mut environments = read_config(file)?;
     if environments.contains_key(&environment) {
         environments.remove(&environment);
     }
@@ -146,13 +147,10 @@ fn read_user_inout() -> String {
     input.trim().to_string()
 }
 
-fn read_config() -> Result<HashMap<String, EnvironmentConfig>, ConfigError> {
-    // Get the home directory
-    let mut file = get_config_file()?;
-
+fn read_config(mut config_file: File) -> Result<HashMap<String, EnvironmentConfig>, ConfigError> {
     let mut toml_string = String::new();
-    file.read_to_string(&mut toml_string).map_err(|er| {
-        ConfigError::ConfigRead(format!("Failed to read config file: {:?}", file), er)
+    config_file.read_to_string(&mut toml_string).map_err(|er| {
+        ConfigError::ConfigRead(format!("Failed to read config file: {:?}", config_file), er)
     })?;
 
     // Deserialize the string into a HashMap
@@ -162,8 +160,8 @@ fn read_config() -> Result<HashMap<String, EnvironmentConfig>, ConfigError> {
     Ok(environments)
 }
 
-pub fn activate_environment(environment: &str) -> Result<(), ConfigError> {
-    let mut environments = read_config()?;
+pub fn activate_environment(environment: &str, config_file: File) -> Result<(), ConfigError> {
+    let mut environments = read_config(config_file)?;
 
     if environments.contains_key(environment) {
         environments.iter_mut().for_each(|(key, value)| {
@@ -189,7 +187,7 @@ pub fn activate_environment(environment: &str) -> Result<(), ConfigError> {
     Ok(())
 }
 
-fn get_config_file() -> Result<File, ConfigError> {
+pub fn get_config_file() -> Result<File, ConfigError> {
     // Get the home directory
     let home_dir = env::var("HOME").map_err(|er| {
         ConfigError::HomeDirNotFound("HOME environment variable not found".to_string())
@@ -207,8 +205,8 @@ fn get_config_file() -> Result<File, ConfigError> {
     Ok(file)
 }
 
-pub fn get_active_environment() -> Result<EnvironmentConfig, ConfigError> {
-    let environments = read_config()?;
+pub fn get_active_environment(config_file: File) -> Result<EnvironmentConfig, ConfigError> {
+    let environments = read_config(config_file)?;
     let active_env = environments
         .iter()
         .find(|(_, config)| config.is_default)
