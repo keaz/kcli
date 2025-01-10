@@ -3,7 +3,7 @@ use std::error::Error;
 use clap::Parser;
 use cli::{generate_completion, Cli};
 use config::{
-    activate_environment, configure, get_active_environment, get_config_file, ConfigError,
+    activate_environment, configure, get_active_environment, get_config_file,
 };
 
 mod cli;

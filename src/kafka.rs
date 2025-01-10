@@ -6,13 +6,11 @@ use std::{
 };
 
 use byteorder::{BigEndian, ReadBytesExt};
-use clap::builder::Str;
 use colored_json::to_colored_json_auto;
 use prettytable::{row, Table};
 use rdkafka::{
     consumer::{BaseConsumer, Consumer},
     error::KafkaResult,
-    groups::GroupList,
     metadata::{Metadata, MetadataPartition},
     ClientConfig, Message, Offset, TopicPartitionList,
 };
@@ -140,26 +138,29 @@ fn get_topic_detail_inner<'a>(
     let overall_header = ["Partitions", "Partition IDs", "Total Messages"];
     let mut overall_detail = [String::from("0"), String::from(""), String::from("0")];
     let partition_detail_header = ["Partition ID", "Leader", "Offset"];
-    let mut partition_detail = vec![];
+    let mut partitions_detail = vec![];
 
     topic_detail.topics().iter().for_each(|t| {
         let partition_count = t.partitions().len();
-        let mut total_messages = 0;
-        let mut partition_ids = String::new();
 
-        t.partitions()
-            .iter()
-            .map(|p| {
-                partition_detail_inner(
-                    &mut partition_ids,
-                    p,
-                    topic,
-                    consumer,
-                    &mut total_messages,
-                    &mut partition_detail,
-                )
-            })
-            .collect::<Result<Vec<_>, KafkaError>>();
+        let (partition_ids, partition_detail, total_messages) = t.partitions().iter().fold(
+            (String::new(), vec![], 0),
+            |(mut partition_ids, mut partition_detail, mut total_messages), p| {
+                let partition_result = partition_detail_inner(p, topic, consumer);
+                if let Ok((ids, detail, messages)) = partition_result {
+                    partition_ids.push_str(&ids);
+                    partition_ids.push_str(", ");
+                    total_messages += messages;
+                    partition_detail.extend(detail);
+                } else {
+                    partition_ids.push_str("Error");
+                    partition_ids.push_str(", ");
+                }
+                (partition_ids, partition_detail, total_messages)
+            },
+        );
+
+        partitions_detail = partition_detail;
 
         overall_detail = [
             partition_count.to_string(),
@@ -171,18 +172,19 @@ fn get_topic_detail_inner<'a>(
         overall_header,
         overall_detail,
         partition_detail_header,
-        partition_detail,
+        partitions_detail,
     ))
 }
 
 fn partition_detail_inner(
-    partition_ids: &mut String,
     p: &MetadataPartition,
     topic: &str,
     consumer: &BaseConsumer,
-    total_messages: &mut i64,
-    partition_detail: &mut Vec<[String; 3]>,
-) -> Result<(), KafkaError> {
+) -> Result<(String, Vec<[String; 3]>, i64), KafkaError> {
+    let mut partition_ids = String::new();
+    let mut partition_detail = vec![];
+    let mut total_messages = 0;
+
     partition_ids.push_str(&p.id().to_string());
     partition_ids.push_str(", ");
 
@@ -202,7 +204,7 @@ fn partition_detail_inner(
     let mut partion_offset = 0;
     if let Some(offset) = offsets.elements_for_topic(topic).first() {
         if let Offset::Offset(offset) = offset.offset() {
-            *total_messages += offset;
+            total_messages = offset;
             partion_offset = offset;
         }
     }
@@ -212,7 +214,7 @@ fn partition_detail_inner(
         partion_offset.to_string(),
     ]);
 
-    Ok(())
+    Ok((partition_ids, partition_detail, total_messages))
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -464,7 +466,7 @@ fn get_consumer_groups_inner(
     let groups = consumer
         .fetch_group_list(None, Duration::from_secs(10))
         .map_err(|er| {
-            if let rdkafka::error::KafkaError::GroupListFetch(e) = er {
+            if let rdkafka::error::KafkaError::GroupListFetch(_) = er {
                 KafkaError::GroupListFetch("Error while fetching consumer groups".to_string(), er)
             } else {
                 KafkaError::Generic("Error while fetching consumer groups".to_string())
@@ -653,20 +655,15 @@ fn calculate_consumer_lag(bootstrap_servers: &str, group_id: &str) -> Result<(),
         let mut table = Table::new();
         table.add_row(row!["Partition", "Current Offset", "Latest Offset", "Lag"]);
 
-        let mut total_messages = 0;
-        let mut partition_detail: Vec<[String; 3]> = vec![];
+        let mut partition_details: Vec<[String; 3]> = vec![];
 
         for partition in topic_metadata.partitions() {
             let partition_id = partition.id();
 
-            partition_detail_inner(
-                &mut String::new(),
-                partition,
-                topic_metadata.name(),
-                &consumer,
-                &mut total_messages,
-                &mut partition_detail,
-            )?;
+            let (_, partition_detail, _) =
+                partition_detail_inner(partition, topic_metadata.name(), &consumer)?;
+
+            partition_details.extend(partition_detail);
 
             // Get latest offset
             let (_, high_watermark) = consumer
