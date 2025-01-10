@@ -2,7 +2,7 @@ use std::{
     collections::HashMap,
     env,
     fs::File,
-    io::{self, Read, Write},
+    io::{self, Read, Seek, Write},
     path::Path,
 };
 
@@ -98,7 +98,7 @@ pub fn configure() -> Result<(), ConfigError> {
 
     let file = get_config_file()?;
     // Read the existing config and remove the environment if it already exists
-    let mut environments = read_config(file)?;
+    let mut environments = read_config(&file)?;
     if environments.contains_key(&environment) {
         environments.remove(&environment);
     }
@@ -146,7 +146,9 @@ fn read_user_inout() -> String {
     input.trim().to_string()
 }
 
-fn read_config(mut config_file: File) -> Result<HashMap<String, EnvironmentConfig>, ConfigError> {
+pub fn read_config(
+    mut config_file: &File,
+) -> Result<HashMap<String, EnvironmentConfig>, ConfigError> {
     let mut toml_string = String::new();
     config_file.read_to_string(&mut toml_string).map_err(|er| {
         ConfigError::ConfigRead(format!("Failed to read config file: {:?}", config_file), er)
@@ -159,9 +161,11 @@ fn read_config(mut config_file: File) -> Result<HashMap<String, EnvironmentConfi
     Ok(environments)
 }
 
-pub fn activate_environment(environment: &str, config_file: File) -> Result<(), ConfigError> {
-    let mut environments = read_config(config_file)?;
-
+pub fn activate_environment(
+    environment: &str,
+    mut config_file: &File,
+    mut environments: HashMap<String, EnvironmentConfig>,
+) -> Result<(), ConfigError> {
     if environments.contains_key(environment) {
         environments.iter_mut().for_each(|(key, value)| {
             value.is_default = key == environment;
@@ -176,11 +180,30 @@ pub fn activate_environment(environment: &str, config_file: File) -> Result<(), 
     let toml_string = toml::to_string(&environments)
         .map_err(|er| ConfigError::ConfigSerialize("Failed to serialize config".to_string(), er))?;
 
-    let mut file = get_config_file()?;
-
-    file.write_all(toml_string.as_bytes()).map_err(|er| {
-        ConfigError::ConfigWrite(format!("Failed to write to config file: {:?}", file), er)
+    config_file.set_len(0).map_err(|er| {
+        ConfigError::ConfigWrite(
+            format!("Failed to truncate config file: {:?}", config_file),
+            er,
+        )
     })?;
+
+    config_file
+        .seek(std::io::SeekFrom::Start(0))
+        .map_err(|er| {
+            ConfigError::ConfigWrite(
+                format!("Failed to seek to start of config file: {:?}", config_file),
+                er,
+            )
+        })?;
+
+    config_file
+        .write_all(toml_string.as_bytes())
+        .map_err(|er| {
+            ConfigError::ConfigWrite(
+                format!("Failed to write to config file: {:?}", config_file),
+                er,
+            )
+        })?;
 
     println!("Environment {} activated", environment);
     Ok(())
@@ -205,7 +228,7 @@ pub fn get_config_file() -> Result<File, ConfigError> {
 }
 
 pub fn get_active_environment(config_file: File) -> Result<EnvironmentConfig, ConfigError> {
-    let environments = read_config(config_file)?;
+    let environments = read_config(&config_file)?;
     let active_env = environments
         .iter()
         .find(|(_, config)| config.is_default)
@@ -221,10 +244,124 @@ pub fn get_active_environment(config_file: File) -> Result<EnvironmentConfig, Co
 
 #[cfg(test)]
 mod test {
+    use std::{
+        env, fs,
+        io::{self, Read, Write},
+    };
+
+    use tempfile::NamedTempFile;
+
+    use super::read_config;
 
     #[test]
-    fn test_read_config() {}
+    fn test_empty_read_config() -> io::Result<()> {
+        let file = NamedTempFile::new()?;
+        let file = file.as_file();
+
+        let confid_result = read_config(file);
+        assert!(confid_result.is_ok());
+        let config = confid_result.unwrap();
+        assert!(config.is_empty());
+        Ok(())
+    }
 
     #[test]
-    fn test_get_active_environment() {}
+    fn test_read_corrupted_config() -> io::Result<()> {
+        let mut file = NamedTempFile::new()?;
+        let config = r#"
+            [dev]
+            brokers = 
+        "#;
+        writeln!(file, "{}", config)?;
+        file.flush()?;
+
+        let file = file.reopen()?;
+        let confid_result = read_config(&file);
+        assert!(confid_result.is_err());
+        let error = confid_result.unwrap_err();
+        assert_eq!(error.to_string(), "Failed to parse config");
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_config() -> io::Result<()> {
+        let mut file = NamedTempFile::new()?;
+        let config = r#"
+            [dev]
+            brokers = "localhost:9092"
+            is_default = true
+
+            [prod]
+            brokers = "prodhost:9092"
+            is_default = false
+        "#;
+        writeln!(file, "{}", config)?;
+        file.flush()?;
+
+        let file = file.reopen()?;
+        let confid_result = read_config(&file);
+
+        assert!(confid_result.is_ok());
+
+        let config = confid_result.unwrap();
+        assert_eq!(config.len(), 2);
+        assert_eq!(config.get("dev").unwrap().brokers, "localhost:9092");
+        assert_eq!(config.get("prod").unwrap().brokers, "prodhost:9092");
+        assert_eq!(config.get("dev").unwrap().is_default, true);
+        assert_eq!(config.get("prod").unwrap().is_default, false);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_activate_not_found_environment() {
+        let mut file = NamedTempFile::new().unwrap();
+        let config = r#"
+            [dev]
+            brokers = "localhost:9092"
+            is_default = false
+
+            [prod]
+            brokers = "prodhost:9092"
+            is_default = false
+        "#;
+        writeln!(file, "{}", config).unwrap();
+        let file = file.reopen().unwrap();
+
+        let environments = super::read_config(&file).unwrap();
+        let result = super::activate_environment("test", &file, environments);
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        if let super::ConfigError::EnvironmentNotFound(e) = error {
+            assert_eq!(e, "Environment test not found");
+        } else {
+            panic!("Expected EnvironmentNotFound error");
+        }
+    }
+
+    #[test]
+    fn test_activate_environment() {
+        let mut tmp_file = NamedTempFile::new().unwrap();
+        let config = r#"
+            [dev]
+            brokers = "localhost:9092"
+            is_default = false
+
+            [prod]
+            brokers = "prodhost:9092"
+            is_default = false
+        "#;
+        writeln!(tmp_file, "{}", config).unwrap();
+        let file = tmp_file.reopen().unwrap();
+
+        let environments = super::read_config(&file).unwrap();
+
+        let result = super::activate_environment("dev", &file, environments);
+        assert!(result.is_ok());
+
+        let file = tmp_file.reopen().unwrap();
+        let environments = super::read_config(&file).unwrap();
+        let dev = environments.get("dev").unwrap();
+        assert!(dev.is_default);
+    }
 }

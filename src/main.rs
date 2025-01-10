@@ -3,7 +3,7 @@ use std::error::Error;
 use clap::Parser;
 use cli::{generate_completion, Cli};
 use config::{
-    activate_environment, configure, get_active_environment, get_config_file,
+    activate_environment, configure, get_active_environment, get_config_file, read_config,
 };
 
 mod cli;
@@ -23,7 +23,8 @@ fn handle_command() -> Result<(), Box<dyn Error>> {
         cli::Command::Config(args) => {
             if let Some(conf_command) = args.activate {
                 let config_file = get_config_file()?;
-                activate_environment(&conf_command, config_file)?;
+                let environment = read_config(&config_file)?;
+                activate_environment(&conf_command, &config_file, environment)?;
             } else {
                 configure()?;
             }
