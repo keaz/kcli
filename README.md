@@ -2,6 +2,7 @@
 
 `kfcli` is a command-line interface (CLI) tool written in Rust. It provides utilities to monitor Kafka topics and consumers.
 
+![Test](https://github.com/keaz/kcli/actions/workflows/test.yml/badge.svg)
 ![CI](https://github.com/keaz/kcli/actions/workflows/ci.yml/badge.svg)
 
 ## Features
