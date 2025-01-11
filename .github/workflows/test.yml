@@ -31,9 +31,9 @@ jobs:
         steps:
             - name: Create topics
               run: |
-                  docker exec broker /opt/kafka/bin/kafka-topics.sh --create --topic topic-one --bootstrap-server localhost:9092 --replication-factor 1 --partitions 3;
-                  docker exec broker /opt/kafka/bin/kafka-topics.sh --create --topic topic-two --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1;
-                  docker exec broker /opt/kafka/bin/kafka-topics.sh --create --topic topic-three --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1;
+                  docker exec ${{ job.services.broker.id }} /opt/kafka/bin/kafka-topics.sh --create --topic topic-one --bootstrap-server localhost:9092 --replication-factor 1 --partitions 3;
+                  docker exec ${{ job.services.broker.id }} /opt/kafka/bin/kafka-topics.sh --create --topic topic-two --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1;
+                  docker exec ${{ job.services.broker.id }} /opt/kafka/bin/kafka-topics.sh --create --topic topic-three --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1;
 
             - name: Checkout code
               uses: actions/checkout@v3
