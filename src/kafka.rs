@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    f32::consts::E,
     fmt::Debug,
     io::{Cursor, Read},
     time::Duration,
@@ -11,7 +12,7 @@ use prettytable::{row, Table};
 use rdkafka::{
     consumer::{BaseConsumer, Consumer},
     error::KafkaResult,
-    metadata::{Metadata, MetadataPartition},
+    metadata::{Metadata, MetadataPartition, MetadataTopic},
     ClientConfig, Message, Offset, TopicPartitionList,
 };
 use serde::{Deserialize, Serialize};
@@ -36,6 +37,9 @@ pub enum KafkaError {
 
     #[error("{0}")]
     GroupListFetch(String, #[source] rdkafka::error::KafkaError),
+
+    #[error("{0}")]
+    TopicNotExists(String),
 }
 
 fn get_consumer(bootstrap_servers: &str) -> BaseConsumer {
@@ -136,14 +140,20 @@ fn get_topic_detail_inner<'a>(
         })?;
 
     let overall_header = ["Partitions", "Partition IDs", "Total Messages"];
-    let mut overall_detail = [String::from("0"), String::from(""), String::from("0")];
     let partition_detail_header = ["Partition ID", "Leader", "Offset"];
-    let mut partitions_detail = vec![];
 
-    topic_detail.topics().iter().for_each(|t| {
-        let partition_count = t.partitions().len();
+    let topci_metadata = &topic_detail.topics()[0];
+    if topci_metadata.partitions().len() == 0 {
+        return Err(KafkaError::TopicNotExists(format!(
+            "Topic {} does not exist",
+            topic
+        )));
+    }
 
-        let (partition_ids, partition_detail, total_messages) = t.partitions().iter().fold(
+    let partition_count = topci_metadata.partitions().len();
+
+    let (partition_ids, partition_detail, total_messages) =
+        topci_metadata.partitions().iter().fold(
             (String::new(), vec![], 0),
             |(mut partition_ids, mut partition_detail, mut total_messages), p| {
                 let partition_result = partition_detail_inner(p, topic, consumer);
@@ -160,19 +170,17 @@ fn get_topic_detail_inner<'a>(
             },
         );
 
-        partitions_detail = partition_detail;
+    let overall_detail = [
+        partition_count.to_string(),
+        partition_ids,
+        total_messages.to_string(),
+    ];
 
-        overall_detail = [
-            partition_count.to_string(),
-            partition_ids,
-            total_messages.to_string(),
-        ];
-    });
     Ok((
         overall_header,
         overall_detail,
         partition_detail_header,
-        partitions_detail,
+        partition_detail,
     ))
 }
 
@@ -186,7 +194,6 @@ fn partition_detail_inner(
     let mut total_messages = 0;
 
     partition_ids.push_str(&p.id().to_string());
-    partition_ids.push_str(", ");
 
     let mut tpl = TopicPartitionList::new();
     tpl.add_partition_offset(topic, p.id(), Offset::End)
@@ -289,6 +296,7 @@ pub fn list_consumers_for_topic(consumer: &BaseConsumer, topic: &str) -> Result<
                 if assignment.is_none() {
                     continue;
                 }
+                println!("Assignment: {:?}", assignment);
                 let assignment = deserialize_assignment(assignment.unwrap())?;
                 if assignment.contains_key(topic) {
                     is_consuming = true;
@@ -700,7 +708,7 @@ fn calculate_consumer_lag(bootstrap_servers: &str, group_id: &str) -> Result<(),
 mod test {
     use rdkafka::metadata::MetadataTopic;
 
-    use crate::kafka::{get_consumer, get_topic_detail_inner};
+    use crate::kafka::{get_consumer, get_topic_detail_inner, KafkaError};
 
     #[test]
     fn test_get_topics_inner() {
@@ -724,6 +732,20 @@ mod test {
     }
 
     #[test]
+    fn test_get_topic_not_exists_detail_inner() {
+        let bootstrap_servers = "localhost:9092";
+        let topic = "topic-not-exists";
+        let consumer = get_consumer(bootstrap_servers);
+        let result = get_topic_detail_inner(&consumer, topic);
+        assert!(result.is_err());
+        if let KafkaError::TopicNotExists(err) = result.unwrap_err() {
+            assert_eq!(err, "Topic topic-not-exists does not exist");
+        } else {
+            panic!("Error should be TopicNotExists");
+        }
+    }
+
+    #[test]
     fn test_get_topic_detail_inner() {
         let bootstrap_servers = "localhost:9092";
         let topic = "topic-one";
@@ -743,5 +765,38 @@ mod test {
             partition_detail,
             [["0", "1", "0"], ["1", "1", "0"], ["2", "1", "0"]]
         );
+    }
+
+    #[test]
+    fn test_error_deserialize_assignment() {
+        let data = vec![
+            0, 1, 0, 0, 0, 1, 0, 9, 116, 111, 45, 111, 110, 101, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0,
+            1, 0, 0, 0, 2,
+        ];
+        let result = super::deserialize_assignment(&data);
+        assert!(result.is_err());
+        if let KafkaError::Deserialize(err, _) = result.unwrap_err() {
+            assert_eq!(err, "Error while reading partition:");
+        } else {
+            panic!("Error should be Deserialize");
+        }
+    }
+
+    #[test]
+    fn test_deserialize_assignment() {
+        let data = vec![
+            0, 1, 0, 0, 0, 1, 0, 9, 116, 111, 112, 105, 99, 45, 111, 110, 101, 0, 0, 0, 3, 0, 0, 0,
+            0, 0, 0, 0, 1, 0, 0, 0, 2, 255, 255, 255, 255,
+        ];
+        let result = super::deserialize_assignment(&data);
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_eq!(result.len(), 1);
+        assert!(result.contains_key("topic-one"));
+        let partitions = result.get("topic-one").unwrap();
+        assert_eq!(partitions.len(), 3);
+        assert_eq!(partitions[0], 0);
+        assert_eq!(partitions[1], 1);
+        assert_eq!(partitions[2], 2);
     }
 }

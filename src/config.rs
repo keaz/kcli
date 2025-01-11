@@ -364,4 +364,23 @@ mod test {
         let dev = environments.get("dev").unwrap();
         assert!(dev.is_default);
     }
+
+    #[test]
+    fn test_get_active_environment() {
+        let mut tmp_file = NamedTempFile::new().unwrap();
+        let config = r#"
+            [dev]
+            brokers = "localhost:9092"
+            is_default = true
+
+            [prod]
+            brokers = "prodhost:9092"
+            is_default = false
+        "#;
+        writeln!(tmp_file, "{}", config).unwrap();
+        let file = tmp_file.reopen().unwrap();
+
+        let active_env = super::get_active_environment(file).unwrap();
+        assert_eq!(active_env.brokers, "localhost:9092");
+    }
 }

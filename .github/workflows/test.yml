@@ -9,7 +9,33 @@ jobs:
     build:
         runs-on: ubuntu-latest
 
+        services:
+            broker:
+                image: apache/kafka:latest
+                ports:
+                    - 9092:9092
+                options: >
+                    --env ROOT_USER_DN="cn=manager"
+                    --env KAFKA_NODE_ID=1 \
+                    --env KAFKA_PROCESS_ROLES=broker,controller \
+                    --env KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093 \
+                    --env KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 \
+                    --env KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER \
+                    --env KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT \
+                    --env KAFKA_CONTROLLER_QUORUM_VOTERS=1@localhost:9093 \
+                    --env KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
+                    --env KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1 \
+                    --env KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1 \
+                    --env KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0 \
+                    --env KAFKA_NUM_PARTITIONS=3 \
+
         steps:
+            - name: Import LDIF into OpenDJ
+              run: |
+                  docker exec broker /opt/kafka/bin/kafka-topics.sh --create --topic topic-one --bootstrap-server localhost:9092 --replication-factor 1 --partitions 3;
+                  docker exec broker /opt/kafka/bin/kafka-topics.sh --create --topic topic-two --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1;
+                  docker exec broker /opt/kafka/bin/kafka-topics.sh --create --topic topic-three --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1;
+
             - name: Checkout code
               uses: actions/checkout@v3
 
