@@ -204,10 +204,18 @@ fn get_topic_detail_inner<'a>(
         .ok_or_else(|| KafkaError::TopicNotExists(format!("Topic {} does not exist", topic)))?;
 
     if let Some(err) = topic_metadata.error() {
-        return Err(KafkaError::Generic(format!(
+        let error_msg = format!(
             "Topic {} metadata returned an error: {:?}",
             topic, err
-        )));
+        );
+        if error_msg.contains("UNKNOWN_TOPIC_OR_PART") {
+            return Err(KafkaError::TopicNotExists(format!(
+                "Topic {} does not exist",
+                topic
+            )));
+        } else {
+            return Err(KafkaError::Generic(error_msg));
+        }
     }
 
     if topic_metadata.partitions().is_empty() {
@@ -1043,6 +1051,9 @@ mod test {
             }
             Err(KafkaError::MetadataFetch(_, _)) => {
                 eprintln!("Skipping topic detail test because Kafka metadata is unavailable");
+            }
+            Err(KafkaError::TopicNotExists(_)) => {
+                eprintln!("Skipping topic detail test because topic {} doesn't exist in test environment", topic);
             }
             Err(other) => panic!("Unexpected error fetching topic details: {other:?}"),
         }
