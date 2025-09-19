@@ -52,12 +52,23 @@ jobs:
         if: matrix.os == 'macos-latest'
         run: |
           which brew || /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-          brew install cmake openssl
+          # Install required dependencies for rdkafka cmake-build
+          brew install cmake openssl librdkafka pkg-config zstd lz4 zlib
           brew link --overwrite --force cmake
+          
+          # Set environment variables for OpenSSL
           export OPENSSL_DIR=$(brew --prefix openssl@3)
-          export PKG_CONFIG_PATH=$OPENSSL_DIR/lib/pkgconfig
+          export PKG_CONFIG_PATH="$OPENSSL_DIR/lib/pkgconfig:$(brew --prefix librdkafka)/lib/pkgconfig:$(brew --prefix zstd)/lib/pkgconfig:$(brew --prefix lz4)/lib/pkgconfig"
+          
+          # Set additional environment variables for rdkafka cmake build
+          export LIBRDKAFKA_STATIC=1
+          export CMAKE_BUILD_TYPE=Release
+          
+          # Add to GitHub environment
           echo "OPENSSL_DIR=$OPENSSL_DIR" >> $GITHUB_ENV
           echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH" >> $GITHUB_ENV
+          echo "LIBRDKAFKA_STATIC=1" >> $GITHUB_ENV
+          echo "CMAKE_BUILD_TYPE=Release" >> $GITHUB_ENV
 
       - name: Verify macOS dependencies
         if: matrix.os == 'macos-latest'
@@ -66,8 +77,14 @@ jobs:
           cmake --version
           echo "OpenSSL location:"
           brew --prefix openssl@3
+          echo "librdkafka location:"
+          brew --prefix librdkafka
+          echo "PKG_CONFIG_PATH:"
+          echo $PKG_CONFIG_PATH
+          echo "pkg-config test for librdkafka:"
+          pkg-config --exists rdkafka && echo "rdkafka found" || echo "rdkafka not found"
           echo "Brew packages installed:"
-          brew list cmake openssl
+          brew list cmake openssl librdkafka pkg-config zstd lz4
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -86,6 +103,11 @@ jobs:
       - name: Build with Cargo
         run: |
           if [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            # Set additional environment variables for macOS build
+            export MACOSX_DEPLOYMENT_TARGET=10.15
+            export CC=clang
+            export CXX=clang++
+            
             cargo build --release --target ${{ matrix.target_x86 }}
             cargo build --release --target ${{ matrix.target_arm }}
             lipo -create -output ./target/release/universal_binary \
