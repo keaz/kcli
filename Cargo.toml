@@ -9,7 +9,7 @@ clap = { version = "4.5.23", features = ["derive"] }
 clap_complete = "4.5.40"
 colored_json = "5.0.0"
 prettytable-rs = "0.10.0"
-rdkafka = { version = "0.37.0", features = ["cmake-build", "zstd"] }
+rdkafka = { version = "0.37.0", features = ["zstd"] }
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.134"
 thiserror = "2.0.9"
