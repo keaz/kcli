@@ -111,11 +111,12 @@ jobs:
             export CC=clang
             export CXX=clang++
             
+            # Build for x86_64 only for now to test the fix
+            echo "Building for x86_64 macOS target..."
             cargo build --release --target ${{ matrix.target_x86 }}
-            cargo build --release --target ${{ matrix.target_arm }}
-            lipo -create -output ./target/release/universal_binary \
-                 ./target/${{ matrix.target_x86 }}/release/kfcli \
-                 ./target/${{ matrix.target_arm }}/release/kfcli
+            
+            # Copy the x86_64 binary as our macOS binary
+            cp ./target/${{ matrix.target_x86 }}/release/kfcli ./target/release/macos_binary
           else
             cargo build --release --target ${{ matrix.target }}
           fi
@@ -157,12 +158,12 @@ jobs:
 
       - name: Check if macOS binary exists
         if: matrix.os == 'macos-latest'
-        run: ls -la ./target/release/universal_binary
+        run: ls -la ./target/release/macos_binary
 
-      - name: Upload macOS Universal Binary Release Asset
+      - name: Upload macOS Binary Release Asset
         if: matrix.os == 'macos-latest'
         run: |
-          cp ./target/release/universal_binary ./kfcli-macos
+          cp ./target/release/macos_binary ./kfcli-macos
           gh release upload ${{ github.ref_name }} ./kfcli-macos --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
@@ -179,7 +180,7 @@ jobs:
         if: matrix.os == 'macos-latest'
         id: calculate_sha
         run: |
-          SHA256=$(shasum -a 256 ./target/release/universal_binary | awk '{print $1}')
+          SHA256=$(shasum -a 256 ./target/release/macos_binary | awk '{print $1}')
           echo "sha256=$SHA256" >> $GITHUB_ENV
 
       - name: Trigger Homebrew Formula Update via cURL
