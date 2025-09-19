@@ -23,8 +23,8 @@ fn handle_command() -> Result<(), Box<dyn Error>> {
         cli::Command::Config(args) => {
             if let Some(conf_command) = args.activate {
                 let config_file = get_config_file()?;
-                let environment = read_config(&config_file)?;
-                activate_environment(&conf_command, &config_file, environment)?;
+                let environments = read_config(&config_file)?;
+                activate_environment(&conf_command, environments)?;
             } else {
                 configure()?;
             }
