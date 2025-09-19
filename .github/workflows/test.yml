@@ -36,13 +36,15 @@ jobs:
                   docker exec ${{ job.services.broker.id }} /opt/kafka/bin/kafka-topics.sh --create --topic topic-three --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1;
 
             - name: Checkout code
-              uses: actions/checkout@v3
+              uses: actions/checkout@v4
+
+            - name: Install system dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y clang libclang-dev llvm-dev
 
             - name: Set up Rust
-              uses: actions-rs/toolchain@v1
-              with:
-                  toolchain: stable
-                  profile: minimal
+              uses: dtolnay/rust-toolchain@stable
 
             - name: Run tests
               run: cargo test --verbose
