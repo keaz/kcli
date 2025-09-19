@@ -30,6 +30,8 @@ pub enum Command {
     Brokers(BrokerCommandArgs),
     #[command(name = "consumer", about = "Query consumers")]
     Consumer(ConsumerCommandArgs),
+    #[command(name = "admin", about = "Kafka cluster administration")]
+    Admin(AdminArgs),
     #[command(name = "completion", about = "Generate shell completions")]
     Completion(CompletionArgs),
 }
@@ -64,6 +66,48 @@ pub enum TopicCommand {
 pub struct TopicCommandArgs {
     #[arg(short, long)]
     pub topic: String,
+}
+
+#[derive(Args, Debug)]
+pub struct AdminArgs {
+    #[command(subcommand)]
+    pub command: AdminCommand,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum AdminCommand {
+    #[command(name = "create-topic", about = "Create a new topic")]
+    CreateTopic(CreateTopicArgs),
+    #[command(name = "delete-topic", about = "Delete a topic")]
+    DeleteTopic(TopicCommandArgs),
+    #[command(name = "add-partitions", about = "Increase a topic's partition count")]
+    AddPartitions(AddPartitionsArgs),
+}
+
+#[derive(Args, Debug)]
+pub struct CreateTopicArgs {
+    /// Name of the topic to create
+    #[arg(short, long)]
+    pub topic: String,
+    /// Number of partitions the topic should start with
+    #[arg(short, long, default_value_t = 1)]
+    pub partitions: i32,
+    /// Replication factor for the new topic
+    #[arg(short = 'r', long, default_value_t = 1)]
+    pub replication: i32,
+    /// Optional topic configuration overrides (key=value)
+    #[arg(short = 'c', long = "config", value_name = "KEY=VALUE")]
+    pub configs: Vec<String>,
+}
+
+#[derive(Args, Debug)]
+pub struct AddPartitionsArgs {
+    /// Name of the topic to update
+    #[arg(short, long)]
+    pub topic: String,
+    /// New total partition count for the topic
+    #[arg(short, long)]
+    pub total: i32,
 }
 
 #[derive(Args, Debug)]

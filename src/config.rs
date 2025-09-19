@@ -9,7 +9,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-const CONFIG_FOLDER: &str = ".config/kcfli";
+const CONFIG_FOLDER: &str = ".config/kfcli";
 const CONFIG_FILE: &str = "config.toml";
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -244,10 +244,7 @@ pub fn get_active_environment(config_file: File) -> Result<EnvironmentConfig, Co
 
 #[cfg(test)]
 mod test {
-    use std::{
-        env, fs,
-        io::{self, Read, Write},
-    };
+    use std::io::{self, Write};
 
     use tempfile::NamedTempFile;
 

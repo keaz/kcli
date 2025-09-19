@@ -42,7 +42,12 @@ fn handle_command() -> Result<(), Box<dyn Error>> {
                 }
                 cli::TopicCommand::Tail(tail_args) => {
                     let env = get_active_environment(config_file)?;
-                    kafka::tail_topic(&env.brokers, &tail_args.topic, tail_args.filter)?;
+                    kafka::tail_topic(
+                        &env.brokers,
+                        &tail_args.topic,
+                        tail_args.before,
+                        tail_args.filter,
+                    )?;
                 }
             }
         }
@@ -52,8 +57,7 @@ fn handle_command() -> Result<(), Box<dyn Error>> {
             if args.list {
                 kafka::get_broker_detail(&env.brokers)?;
             } else {
-                //#FIXME: Should return an error here
-                eprintln!("Invalid command, use -l flag to list brokers");
+                return Err("Invalid command, use -l flag to list brokers".into());
             }
         }
         cli::Command::Consumer(group_command) => {
@@ -65,11 +69,31 @@ fn handle_command() -> Result<(), Box<dyn Error>> {
             }
             match group_command.consumer {
                 Some(group) => {
-                    kafka::get_consumers_group_details(&env.brokers, group, false)?;
+                    kafka::get_consumers_group_details(&env.brokers, group, group_command.pending)?;
                 }
                 None => {
-                    //#FIXME: Should return an error here
-                    eprintln!("Either specify -g or -l flag");
+                    return Err("Either specify -g or -l flag".into());
+                }
+            }
+        }
+        cli::Command::Admin(admin_args) => {
+            let config_file = get_config_file()?;
+            let env = get_active_environment(config_file)?;
+            match admin_args.command {
+                cli::AdminCommand::CreateTopic(args) => {
+                    kafka::create_topic(
+                        &env.brokers,
+                        &args.topic,
+                        args.partitions,
+                        args.replication,
+                        &args.configs,
+                    )?;
+                }
+                cli::AdminCommand::DeleteTopic(args) => {
+                    kafka::delete_topic(&env.brokers, &args.topic)?;
+                }
+                cli::AdminCommand::AddPartitions(args) => {
+                    kafka::increase_partitions(&env.brokers, &args.topic, args.total)?;
                 }
             }
         }
