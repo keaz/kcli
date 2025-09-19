@@ -266,6 +266,26 @@ pub fn get_active_environment(config_file: File) -> Result<EnvironmentConfig, Co
     Ok(active_env.unwrap())
 }
 
+pub fn get_active_environment_name(config_file: File) -> Result<String, ConfigError> {
+    let environments = read_config(&config_file)?;
+    let active_env_name = environments
+        .iter()
+        .find(|(_, config)| config.is_default)
+        .map(|(name, _)| name.clone());
+
+    if active_env_name.is_none() {
+        return Err(ConfigError::NoActiveEnvironment(
+            "No active environment found".to_string(),
+        ));
+    }
+    Ok(active_env_name.unwrap())
+}
+
+pub fn get_all_environments() -> Result<HashMap<String, EnvironmentConfig>, ConfigError> {
+    let config_file = get_config_file()?;
+    read_config(&config_file)
+}
+
 #[cfg(test)]
 mod test {
     use std::io::{self, Write};

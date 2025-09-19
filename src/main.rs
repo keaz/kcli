@@ -3,7 +3,8 @@ use std::error::Error;
 use clap::Parser;
 use cli::{generate_completion, Cli};
 use config::{
-    activate_environment, configure, get_active_environment, get_config_file, read_config,
+    activate_environment, configure, get_active_environment, get_active_environment_name, 
+    get_all_environments, get_config_file, read_config,
 };
 
 mod cli;
@@ -25,8 +26,49 @@ fn handle_command() -> Result<(), Box<dyn Error>> {
                 let config_file = get_config_file()?;
                 let environments = read_config(&config_file)?;
                 activate_environment(&conf_command, environments)?;
-            } else {
+            } else if args.setup {
                 configure()?;
+            } else {
+                // Show current active environment and all available environments
+                match get_config_file() {
+                    Ok(config_file) => {
+                        match get_active_environment_name(config_file) {
+                            Ok(active_env_name) => {
+                                println!("Current active environment: {}", active_env_name);
+                                
+                                // Also show the configuration for this environment
+                                let config_file = get_config_file()?;
+                                let active_config = get_active_environment(config_file)?;
+                                println!("Brokers: {}", active_config.brokers);
+                                
+                                // List all available environments
+                                match get_all_environments() {
+                                    Ok(environments) => {
+                                        if environments.len() > 1 {
+                                            println!("\nAll environments:");
+                                            for (env_name, env_config) in environments.iter() {
+                                                let marker = if env_config.is_default { "*" } else { " " };
+                                                println!("{} {} - {}", marker, env_name, env_config.brokers);
+                                            }
+                                            println!("\n* = active environment");
+                                            println!("\nUse 'kfcli config --activate <environment>' to switch environments");
+                                            println!("Use 'kfcli config --setup' to add new environments");
+                                        }
+                                    }
+                                    Err(e) => eprintln!("Warning: Could not list all environments: {}", e),
+                                }
+                            }
+                            Err(_) => {
+                                println!("No active environment configured.");
+                                println!("Use 'kfcli config --setup' to configure your first environment.");
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        println!("No configuration file found.");
+                        println!("Use 'kfcli config --setup' to create your first environment configuration.");
+                    }
+                }
             }
         }
         cli::Command::Topics(topic_args) => {

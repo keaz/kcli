@@ -30,8 +30,9 @@ _kfcli() {
         case $line[1] in
             (config)
 _arguments "${_arguments_options[@]}" : \
-'-a+[]:ACTIVATE:_default' \
-'--activate=[]:ACTIVATE:_default' \
+'-a+[Activate a specific environment]:ACTIVATE:_default' \
+'--activate=[Activate a specific environment]:ACTIVATE:_default' \
+'--setup[Run interactive configuration setup to add new environments]' \
 '-h[Print help]' \
 '--help[Print help]' \
 && ret=0
@@ -132,6 +133,88 @@ _arguments "${_arguments_options[@]}" : \
 '--help[Print help]' \
 && ret=0
 ;;
+(admin)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+":: :_kfcli__admin_commands" \
+"*::: :->admin" \
+&& ret=0
+
+    case $state in
+    (admin)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:kfcli-admin-command-$line[1]:"
+        case $line[1] in
+            (create-topic)
+_arguments "${_arguments_options[@]}" : \
+'-t+[Name of the topic to create]:TOPIC:_default' \
+'--topic=[Name of the topic to create]:TOPIC:_default' \
+'-p+[Number of partitions the topic should start with]:PARTITIONS:_default' \
+'--partitions=[Number of partitions the topic should start with]:PARTITIONS:_default' \
+'-r+[Replication factor for the new topic]:REPLICATION:_default' \
+'--replication=[Replication factor for the new topic]:REPLICATION:_default' \
+'*-c+[Optional topic configuration overrides (key=value)]:KEY=VALUE:_default' \
+'*--config=[Optional topic configuration overrides (key=value)]:KEY=VALUE:_default' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(delete-topic)
+_arguments "${_arguments_options[@]}" : \
+'-t+[]:TOPIC:_default' \
+'--topic=[]:TOPIC:_default' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(add-partitions)
+_arguments "${_arguments_options[@]}" : \
+'-t+[Name of the topic to update]:TOPIC:_default' \
+'--topic=[Name of the topic to update]:TOPIC:_default' \
+'-n+[New total partition count for the topic]:TOTAL:_default' \
+'--total=[New total partition count for the topic]:TOTAL:_default' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_kfcli__admin__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:kfcli-admin-help-command-$line[1]:"
+        case $line[1] in
+            (create-topic)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(delete-topic)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(add-partitions)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
 (completion)
 _arguments "${_arguments_options[@]}" : \
 '-h[Print help]' \
@@ -191,6 +274,34 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
+(admin)
+_arguments "${_arguments_options[@]}" : \
+":: :_kfcli__help__admin_commands" \
+"*::: :->admin" \
+&& ret=0
+
+    case $state in
+    (admin)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:kfcli-help-admin-command-$line[1]:"
+        case $line[1] in
+            (create-topic)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(delete-topic)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(add-partitions)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
 (completion)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
@@ -215,10 +326,66 @@ _kfcli_commands() {
 'topics:Query topics' \
 'brokers:Query brokers' \
 'consumer:Query consumers' \
+'admin:Kafka cluster administration' \
 'completion:Generate shell completions' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'kfcli commands' commands "$@"
+}
+(( $+functions[_kfcli__admin_commands] )) ||
+_kfcli__admin_commands() {
+    local commands; commands=(
+'create-topic:Create a new topic' \
+'delete-topic:Delete a topic' \
+'add-partitions:Increase a topic'\''s partition count' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'kfcli admin commands' commands "$@"
+}
+(( $+functions[_kfcli__admin__add-partitions_commands] )) ||
+_kfcli__admin__add-partitions_commands() {
+    local commands; commands=()
+    _describe -t commands 'kfcli admin add-partitions commands' commands "$@"
+}
+(( $+functions[_kfcli__admin__create-topic_commands] )) ||
+_kfcli__admin__create-topic_commands() {
+    local commands; commands=()
+    _describe -t commands 'kfcli admin create-topic commands' commands "$@"
+}
+(( $+functions[_kfcli__admin__delete-topic_commands] )) ||
+_kfcli__admin__delete-topic_commands() {
+    local commands; commands=()
+    _describe -t commands 'kfcli admin delete-topic commands' commands "$@"
+}
+(( $+functions[_kfcli__admin__help_commands] )) ||
+_kfcli__admin__help_commands() {
+    local commands; commands=(
+'create-topic:Create a new topic' \
+'delete-topic:Delete a topic' \
+'add-partitions:Increase a topic'\''s partition count' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'kfcli admin help commands' commands "$@"
+}
+(( $+functions[_kfcli__admin__help__add-partitions_commands] )) ||
+_kfcli__admin__help__add-partitions_commands() {
+    local commands; commands=()
+    _describe -t commands 'kfcli admin help add-partitions commands' commands "$@"
+}
+(( $+functions[_kfcli__admin__help__create-topic_commands] )) ||
+_kfcli__admin__help__create-topic_commands() {
+    local commands; commands=()
+    _describe -t commands 'kfcli admin help create-topic commands' commands "$@"
+}
+(( $+functions[_kfcli__admin__help__delete-topic_commands] )) ||
+_kfcli__admin__help__delete-topic_commands() {
+    local commands; commands=()
+    _describe -t commands 'kfcli admin help delete-topic commands' commands "$@"
+}
+(( $+functions[_kfcli__admin__help__help_commands] )) ||
+_kfcli__admin__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'kfcli admin help help commands' commands "$@"
 }
 (( $+functions[_kfcli__brokers_commands] )) ||
 _kfcli__brokers_commands() {
@@ -247,10 +414,35 @@ _kfcli__help_commands() {
 'topics:Query topics' \
 'brokers:Query brokers' \
 'consumer:Query consumers' \
+'admin:Kafka cluster administration' \
 'completion:Generate shell completions' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'kfcli help commands' commands "$@"
+}
+(( $+functions[_kfcli__help__admin_commands] )) ||
+_kfcli__help__admin_commands() {
+    local commands; commands=(
+'create-topic:Create a new topic' \
+'delete-topic:Delete a topic' \
+'add-partitions:Increase a topic'\''s partition count' \
+    )
+    _describe -t commands 'kfcli help admin commands' commands "$@"
+}
+(( $+functions[_kfcli__help__admin__add-partitions_commands] )) ||
+_kfcli__help__admin__add-partitions_commands() {
+    local commands; commands=()
+    _describe -t commands 'kfcli help admin add-partitions commands' commands "$@"
+}
+(( $+functions[_kfcli__help__admin__create-topic_commands] )) ||
+_kfcli__help__admin__create-topic_commands() {
+    local commands; commands=()
+    _describe -t commands 'kfcli help admin create-topic commands' commands "$@"
+}
+(( $+functions[_kfcli__help__admin__delete-topic_commands] )) ||
+_kfcli__help__admin__delete-topic_commands() {
+    local commands; commands=()
+    _describe -t commands 'kfcli help admin delete-topic commands' commands "$@"
 }
 (( $+functions[_kfcli__help__brokers_commands] )) ||
 _kfcli__help__brokers_commands() {

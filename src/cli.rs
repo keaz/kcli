@@ -38,8 +38,10 @@ pub enum Command {
 
 #[derive(Args, Debug)]
 pub struct ConfigArgs {
-    #[arg(short, long)]
+    #[arg(short, long, help = "Activate a specific environment")]
     pub activate: Option<String>,
+    #[arg(long, help = "Run interactive configuration setup to add new environments")]
+    pub setup: bool,
 }
 
 #[derive(Args, Debug)]
@@ -106,7 +108,7 @@ pub struct AddPartitionsArgs {
     #[arg(short, long)]
     pub topic: String,
     /// New total partition count for the topic
-    #[arg(short, long)]
+    #[arg(short = 'n', long)]
     pub total: i32,
 }
 
