@@ -9,6 +9,8 @@ use std::{
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use crate::schema::SchemaRegistryConfig;
+
 const CONFIG_FOLDER: &str = ".config/kfcli";
 const CONFIG_FILE: &str = "config.toml";
 
@@ -16,6 +18,8 @@ const CONFIG_FILE: &str = "config.toml";
 pub struct EnvironmentConfig {
     pub brokers: String,
     pub is_default: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub schema_registry: Option<SchemaRegistryConfig>,
 }
 
 #[derive(Debug, Error)]
@@ -80,6 +84,7 @@ pub fn configure() -> Result<(), ConfigError> {
     let config = EnvironmentConfig {
         brokers,
         is_default: false,
+        schema_registry: None,
     };
 
     // Get config folder path
@@ -390,6 +395,7 @@ mod test {
             super::EnvironmentConfig {
                 brokers: "localhost:9092".to_string(),
                 is_default: false,
+                schema_registry: None,
             },
         );
         environments.insert(
@@ -397,6 +403,7 @@ mod test {
             super::EnvironmentConfig {
                 brokers: "prodhost:9092".to_string(),
                 is_default: false,
+                schema_registry: None,
             },
         );
 

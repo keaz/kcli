@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo test:*)",
+      "Bash(1)",
+      "Bash(cargo build:*)",
+      "Bash(./target/release/kfcli --help)",
+      "Bash(./target/release/kfcli:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

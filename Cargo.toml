@@ -14,6 +14,10 @@ serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.134"
 thiserror = "2.0.9"
 toml = "0.8.19"
+apache-avro = "0.17.0"
+reqwest = { version = "0.12.0", features = ["json", "blocking"] }
+url = "2.5.0"
+chrono = "0.4"
 
 
 [dev-dependencies]
