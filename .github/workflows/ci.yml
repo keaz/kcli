@@ -104,12 +104,23 @@ jobs:
         run: rustup target add ${{ matrix.target }}
 
       - name: Build with Cargo
+        env:
+          OPENSSL_DIR: ${{ env.OPENSSL_DIR }}
+          PKG_CONFIG_PATH: ${{ env.PKG_CONFIG_PATH }}
+          LDFLAGS: ${{ env.LDFLAGS }}
+          CPPFLAGS: ${{ env.CPPFLAGS }}
         run: |
           if [[ "${{ matrix.os }}" == "macos-latest" ]]; then
             # Set additional environment variables for macOS build
             export MACOSX_DEPLOYMENT_TARGET=10.15
             export CC=clang
             export CXX=clang++
+            
+            # Debug: Print environment variables
+            echo "OPENSSL_DIR: $OPENSSL_DIR"
+            echo "PKG_CONFIG_PATH: $PKG_CONFIG_PATH"
+            echo "LDFLAGS: $LDFLAGS"
+            echo "CPPFLAGS: $CPPFLAGS"
             
             # Build for x86_64 only for now to test the fix
             echo "Building for x86_64 macOS target..."
